@@ -22,6 +22,15 @@ async def get_genre_all(db: Session = Depends(database.get_db),
     return genre.get_genre_all(db, limit, skip, search)
 
 
+@router.get("/pageable", 
+            status_code=status.HTTP_200_OK)
+async def get_genre_pageable(page: int, 
+                              page_size: int, 
+                              db: Session = Depends(get_db)):
+     
+    return genre.get_genre_pageable(page, page_size, db)
+
+
 @router.get("/{genre_id}", 
             response_model=schemas.GenreResponse)
 async def get_genre_by_id(genre_id: int, 
@@ -59,7 +68,13 @@ async def delete_genre(genre_id: int,
     return genre.delete_genre(genre_id, db, current_user)
 
 
-
+@router.delete("/delete-many", 
+               status_code=status.HTTP_200_OK)
+async def delete_many_genre(genre_ids: schemas.DeleteMany, 
+                            db: Session = Depends(get_db), 
+                            current_user = Depends(oauth2.get_current_user)):
+    
+    return genre.delete_many_genre(genre_ids, db, current_user)
 
 
 # @router.post("/upload/")

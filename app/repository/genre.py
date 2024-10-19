@@ -5,7 +5,7 @@ from sqlalchemy import func
 from typing import Optional
 from .. import models, schemas, utils
 from ..database import get_db
-import os
+import math, os
 
 
 def get_genre_all(db: Session, 
@@ -29,6 +29,22 @@ def get_genre_by_id(genre_id: int,
     return genre
 
 
+def get_genre_pageable(page: int, 
+                        page_size: int, 
+                        db: Session):
+     
+    total_count = db.query(models.Genre).count()  # Dùng count() để lấy số lượng mục
+    total_pages = math.ceil(total_count / page_size)
+    offset = (page - 1) * page_size
+    genres = db.query(models.Genre).offset(offset).limit(page_size).all()
+
+    return {
+        "genres": genres, 
+        "total_pages": total_pages,
+        "total_data": total_count
+    }
+
+
 def create_genre(new_genre: schemas.GenreCreate, 
                  db: Session, 
                  current_user):
@@ -36,7 +52,7 @@ def create_genre(new_genre: schemas.GenreCreate,
     if current_user.role_id != utils.get_role_by_name(db, "admin").id:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, 
                             detail="Not permission")
-
+    print(new_genre)
     genre = models.Genre(**new_genre.dict())
     db.add(genre)
     db.commit()
@@ -79,6 +95,27 @@ def delete_genre(genre_id: int,
     db.commit()
     
     return {"message": "Delete genre succesfull"}
+
+
+def delete_many_genre(genre_ids: schemas.DeleteMany, 
+                      db: Session, 
+                      current_user):
+    
+    if current_user.role_id != utils.get_role_by_name(db, "admin").id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, 
+                            detail="Không có quyền thực hiện thao tác này")
+
+    genre_query = db.query(models.Genre).filter(models.Genre.id.in_(genre_ids.list_id))
+
+    if genre_query.count() == 0:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, 
+                            detail="Không tìm thấy thể loại với các ID đã cung cấp")
+
+    # Xóa các tác giả
+    genre_query.delete(synchronize_session=False)
+    db.commit()
+
+    return {"message": "Xóa danh sách thể loại thành công"}
 
 
 # async def upload_file(file: UploadFile,

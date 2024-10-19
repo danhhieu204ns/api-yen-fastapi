@@ -2,6 +2,7 @@ from fastapi import status, HTTPException
 from sqlalchemy.orm import Session
 from typing import Optional
 from .. import schemas, models, utils
+import math
 
 
 
@@ -24,6 +25,22 @@ def get_book_by_id(book_id: int,
                             detail=f"Not found book")
     
     return book
+
+
+def get_book_pageable(page: int, 
+                        page_size: int, 
+                        db: Session):
+     
+    total_count = db.query(models.Book).count()  # Dùng count() để lấy số lượng mục
+    total_pages = math.ceil(total_count / page_size)
+    offset = (page - 1) * page_size
+    books = db.query(models.Book).offset(offset).limit(page_size).all()
+
+    return {
+        "books": books, 
+        "total_pages": total_pages,
+        "total_data": total_count
+    }
 
 
 def create_book(new_book: schemas.BookCreate, 

@@ -19,6 +19,15 @@ async def get_author_by_id(db: Session = Depends(get_db)):
     return author.get_author_all(db)
 
 
+@router.get("/pageable", 
+            status_code=status.HTTP_200_OK)
+async def get_author_pageable(page: int, 
+                              page_size: int, 
+                              db: Session = Depends(get_db)):
+     
+    return author.get_author_pageable(page, page_size, db)
+
+
 @router.get("/{author_id}", 
             status_code=status.HTTP_200_OK, 
             response_model=schemas.AuthorResponse)
@@ -26,7 +35,7 @@ async def get_author_all(author_id: int,
                          db: Session = Depends(get_db)):
     
     return author.get_author_by_id(author_id, db)
-
+    
 
 @router.post("/create", 
              status_code=status.HTTP_201_CREATED, 
@@ -56,3 +65,12 @@ async def delete_author(author_id: int,
                         current_user = Depends(oauth2.get_current_user)):
     
     return author.delete_author(author_id, db, current_user)
+
+
+@router.delete("/delete-many", 
+               status_code=status.HTTP_200_OK)
+async def delete_many_author(author_ids: schemas.DeleteMany, 
+                             db: Session = Depends(get_db), 
+                             current_user = Depends(oauth2.get_current_user)):
+    
+    return author.delete_many_author(author_ids, db, current_user)
