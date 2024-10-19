@@ -3,6 +3,7 @@ from sqlalchemy.orm import Session
 from typing import Optional, List
 from .. import schemas, database, oauth2
 from ..repository import bookgroup
+from ..database import get_db
 
 
 router = APIRouter(
@@ -18,6 +19,16 @@ async def get_bookgroup_all(db: Session = Depends(database.get_db),
                             search: Optional[str] = ''):
     
     return bookgroup.get_bookgroup_all(db, limit, skip, search)
+
+
+@router.get("/pageable", 
+            status_code=status.HTTP_200_OK, 
+            response_model=schemas.BookgroupPageableResponse)
+async def get_bookgroup_pageable(page: int, 
+                              page_size: int, 
+                              db: Session = Depends(get_db)):
+     
+    return bookgroup.get_bookgroup_pageable(page, page_size, db)
 
 
 @router.get("/{bookgroup_id}", 
@@ -55,3 +66,13 @@ async def delete_bookgroup(bookgroup_id: int,
                        current_user = Depends(oauth2.get_current_user)):
 
     return bookgroup.delete_bookgroup(bookgroup_id, db, current_user)
+
+
+
+@router.delete("/delete-many", 
+               status_code=status.HTTP_200_OK)
+async def delete_many_bookgroup(bookgroup_ids: schemas.DeleteMany, 
+                             db: Session = Depends(database.get_db), 
+                             current_user = Depends(oauth2.get_current_user)):
+    
+    return bookgroup.delete_many_bookgroup(bookgroup_ids, db, current_user)

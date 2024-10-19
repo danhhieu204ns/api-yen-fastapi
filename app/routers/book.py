@@ -3,6 +3,7 @@ from sqlalchemy.orm import Session
 from typing import Optional, List
 from .. import schemas, database, oauth2
 from ..repository import book
+from ..database import get_db
 
 
 router = APIRouter(
@@ -18,6 +19,15 @@ async def get_book_all(db: Session = Depends(database.get_db),
                             search: Optional[str] = ''):
     
     return book.get_book_all(db, limit, skip, search)
+
+
+@router.get("/pageable", 
+            status_code=status.HTTP_200_OK)
+async def get_book_pageable(page: int, 
+                              page_size: int, 
+                              db: Session = Depends(get_db)):
+     
+    return book.get_book_pageable(page, page_size, db)
 
 
 @router.get("/{book_id}", 
@@ -36,6 +46,9 @@ async def create_book(new_book: schemas.BookCreate,
                        current_user = Depends(oauth2.get_current_user)):
 
     return book.create_book(new_book, db, current_user)
+
+
+
 
 
 # @router.put("/update/{book_id}", 

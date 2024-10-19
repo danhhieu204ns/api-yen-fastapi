@@ -63,6 +63,9 @@ class UserRePwd(BaseModel):
     new_pwd: str
 
 
+class DeleteMany(BaseModel):
+    list_id: list[int]
+
 
 # Author
 class AuthorCreate(BaseModel):
@@ -98,20 +101,15 @@ class AuthorUpdate(BaseModel):
 # Genre
 class GenreCreate(BaseModel):
     name: str
-    birthdate: date
-    address: str
-    pen_name: str
-    biography: str
+    age_limit: int
+    description: str
 
 
 class GenreResponse(BaseModel):
     id: int
     name: str
-    birthdate: date
-    address: str
-    pen_name: str
-    biography: str
-    created_at: datetime
+    age_limit: int
+    description: str
     
     class Config:
         from_attributes = True
@@ -119,11 +117,8 @@ class GenreResponse(BaseModel):
 
 class GenreUpdate(BaseModel):
     name: Optional[str] = None
-    birthdate: Optional[date] = None
-    address: Optional[str] = None
-    pen_name: Optional[str] = None
-    biography: Optional[str] = None
-
+    age_limit: Optional[int] = None
+    description: Optional[str] = None
 
 
 # Publisher
@@ -154,28 +149,6 @@ class PublisherUpdate(BaseModel):
 
 
 
-# Genre
-class GenreCreate(BaseModel):
-    name: str
-    age_limit: int
-
-
-class GenreResponse(BaseModel):
-    id: int
-    name: str
-    age_limit: int
-    created_at: datetime
-    
-    class Config:
-        from_attributes = True
-
-
-class GenreUpdate(BaseModel):
-    name: Optional[str] = None
-    age_limit: Optional[int] = None
-
-
-
 # Bookgroup
 class BookgroupCreate(BaseModel):
     name: str
@@ -191,10 +164,21 @@ class BookgroupResponse(BaseModel):
     name: str
     status: str
     content: str
+    created_at: datetime
 
     author: AuthorResponse
     publisher: PublisherResponse
     genre: GenreResponse
+
+    class Config:
+        from_attributes = True
+
+
+class BookgroupPageableResponse(BaseModel):
+    bookgroups: list[BookgroupResponse]
+
+    total_pages: int
+    total_data: int
 
     class Config:
         from_attributes = True
