@@ -7,6 +7,7 @@ import re
 
 def create_user(user: schemas.UserCreate, 
                 db: Session):
+    
     username = db.query(models.User).filter(models.User.username == user.username).first()
     if username:
         raise HTTPException(status_code=status.HTTP_406_NOT_ACCEPTABLE,
@@ -31,6 +32,7 @@ def create_user(user: schemas.UserCreate,
     if not re.search(r'[!@#$%^&*(),.?":{}|<>]', user.password):
         raise HTTPException(status_code=status.HTTP_406_NOT_ACCEPTABLE,
                             detail=f"Password must contain at least one special character.")
+    
     role = db.query(models.Role).filter(models.Role.name == "user").first()
     user.password = utils.hash(user.password)
     newUser = models.User(**user.dict(), role_id = role.id)
@@ -41,32 +43,33 @@ def create_user(user: schemas.UserCreate,
     return newUser
 
 
-# def get_user_byid(id: int, 
-#                   db: Session):
+def get_all_user(db: Session):
     
-#     user = db.query(models.User).filter(models.User.id == id).first()
-#     if not user:
-#         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
-#                             detail=f"Not found user with id = {id}")
+    users = db.query(models.User).filter(models.User.role_id == utils.get_role_by_name(db, "user").id).all()
     
-#     return user
+    return users
 
 
-# def updateUser(newUser: schemas.UserUpdate, 
-#                db: Session, 
-#                current_user):
+def get_user_by_id(id: int, 
+                   db: Session):
+    
+    user = db.query(models.User).filter(models.User.id == id, 
+                                        models.User.role_id == utils.get_role_by_name(db, "user").id).first()
+    
+    return user
 
-#     user = db.query(models.User).filter(models.User.id == current_user.id).first()
-#     for key, value in newUser.dict().items():
-#         setattr(user, key, value)
+
+def updateUser(newUser: schemas.UserUpdate, 
+               db: Session, 
+               current_user):
+
+    user = db.query(models.User).filter(models.User.id == current_user.id)
     
-#     db.add(user)
-#     db.commit()
-#     db.refresh(user)
-#     # user.update(newUser.dict(), synchronize_session=False)
-#     # db.commit()
-    
-#     return user
+    user.update(newUser.dict(), synchronize_session=False)
+    db.commit()
+    db.refresh(user)
+
+    return user
 
 
 # def re_pwd(new_pwd: schemas.UserRePwd, 

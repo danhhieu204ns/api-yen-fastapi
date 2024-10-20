@@ -12,13 +12,12 @@ router = APIRouter(
 )
 
 @router.get("/all", 
+            status_code=status.HTTP_200_OK, 
             response_model=List[schemas.BookgroupResponse])
 async def get_bookgroup_all(db: Session = Depends(database.get_db), 
-                            limit: int = 5, 
-                            skip: int = 0, 
                             search: Optional[str] = ''):
     
-    return bookgroup.get_bookgroup_all(db, limit, skip, search)
+    return bookgroup.get_bookgroup_all(db)
 
 
 @router.get("/pageable", 
@@ -32,6 +31,7 @@ async def get_bookgroup_pageable(page: int,
 
 
 @router.get("/{bookgroup_id}", 
+            status_code=status.HTTP_200_OK, 
             response_model=schemas.BookgroupResponse)
 async def get_bookgroup_by_id(bookgroup_id: int, 
                           db: Session = Depends(database.get_db)):
@@ -50,8 +50,8 @@ async def create_bookgroup(new_bookgroup: schemas.BookgroupCreate,
 
 
 @router.put("/update/{bookgroup_id}", 
-            response_model=schemas.BookgroupResponse, 
-            status_code=status.HTTP_200_OK)
+            status_code=status.HTTP_200_OK, 
+            response_model=schemas.BookgroupResponse)
 async def update_bookgroup(bookgroup_id: int, 
                            new_bookgroup: schemas.BookgroupCreate, 
                            db: Session = Depends(database.get_db), 
@@ -60,7 +60,8 @@ async def update_bookgroup(bookgroup_id: int,
     return bookgroup.update_bookgroup(bookgroup_id, new_bookgroup, db, current_user)
 
 
-@router.delete("/delete/{bookgroup_id}")
+@router.delete("/delete/{bookgroup_id}", 
+               status_code=status.HTTP_200_OK, )
 async def delete_bookgroup(bookgroup_id: int, 
                        db: Session = Depends(database.get_db), 
                        current_user = Depends(oauth2.get_current_user)):

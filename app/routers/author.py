@@ -14,7 +14,7 @@ router = APIRouter(
 @router.get("/all", 
             status_code=status.HTTP_200_OK, 
             response_model=list[schemas.AuthorResponse])
-async def get_author_by_id(db: Session = Depends(get_db)):
+async def get_author_all(db: Session = Depends(get_db)):
     
     return author.get_author_all(db)
 
@@ -31,7 +31,7 @@ async def get_author_pageable(page: int,
 @router.get("/{author_id}", 
             status_code=status.HTTP_200_OK, 
             response_model=schemas.AuthorResponse)
-async def get_author_all(author_id: int, 
+async def get_author_by_id(author_id: int, 
                          db: Session = Depends(get_db)):
     
     return author.get_author_by_id(author_id, db)

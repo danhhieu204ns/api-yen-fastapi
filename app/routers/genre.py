@@ -13,6 +13,7 @@ router = APIRouter(
 
 
 @router.get("/all", 
+            status_code=status.HTTP_200_OK, 
             response_model=List[schemas.GenreResponse])
 async def get_genre_all(db: Session = Depends(database.get_db), 
                         limit: int = 5, 
@@ -32,6 +33,7 @@ async def get_genre_pageable(page: int,
 
 
 @router.get("/{genre_id}", 
+            status_code=status.HTTP_200_OK, 
             response_model=schemas.GenreResponse)
 async def get_genre_by_id(genre_id: int, 
                           db: Session = Depends(database.get_db)):
@@ -50,8 +52,8 @@ async def create_genre(new_genre: schemas.GenreCreate,
 
 
 @router.put("/update/{genre_id}", 
-            response_model=schemas.GenreResponse, 
-            status_code=status.HTTP_200_OK)
+            status_code=status.HTTP_200_OK, 
+            response_model=schemas.GenreResponse)
 async def update_genre(genre_id: int, 
                            new_genre: schemas.GenreUpdate, 
                            db: Session = Depends(database.get_db), 
@@ -60,7 +62,8 @@ async def update_genre(genre_id: int,
     return genre.update_genre(genre_id, new_genre, db, current_user)
 
 
-@router.delete("/delete/{genre_id}")
+@router.delete("/delete/{genre_id}", 
+               status_code=status.HTTP_200_OK, )
 async def delete_genre(genre_id: int, 
                        db: Session = Depends(database.get_db), 
                        current_user = Depends(oauth2.get_current_user)):

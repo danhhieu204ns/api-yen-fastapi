@@ -14,6 +14,7 @@ def create_role(new_role: schemas.RoleCreate,
     if utils.get_role_by_name(db, new_role.name):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, 
                             detail="Role already exist")
+    
     db.add(models.Role(**new_role.dict()))
     db.commit()
     return {"message": "create role succesful"}
@@ -46,9 +47,6 @@ def delete_role(role_id: int,
                             detail="Not permission")
 
     role_query = utils.query_role_by_id(db, role_id)
-    if not role_query.first():
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, 
-                            detail="Not found role")
     
     role_query.delete(synchronize_session=False)
     db.commit()

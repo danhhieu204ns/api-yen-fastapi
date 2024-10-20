@@ -129,6 +129,13 @@ class PublisherCreate(BaseModel):
     email: str
 
 
+class PublisherUpdate(BaseModel):
+    name: Optional[str] = None
+    phone_number: Optional[str] = None
+    address: Optional[str] = None
+    email: Optional[str] = None
+    
+
 class PublisherResponse(BaseModel):
     id: int
     name: str
@@ -139,13 +146,6 @@ class PublisherResponse(BaseModel):
     
     class Config:
         from_attributes = True
-
-
-class PublisherUpdate(BaseModel):
-    name: Optional[str] = None
-    phone_number: Optional[str] = None
-    address: Optional[str] = None
-    email: Optional[str] = None
 
 
 
@@ -213,8 +213,41 @@ class BookUpdate(BaseModel):
 
 
 
+# Borrow
+class BorrowCreate(BaseModel):
+    bookgroup_id: int
+    user_id: int
+    staff_id: int
+    duration: int
 
 
+class BorrowUpdate(BaseModel):
+    bookgroup_id: Optional[int] = None
+    user_id: Optional[int] = None
+    staff_id: Optional[int] = None
+    duration: Optional[int] = None
+    status: Optional[str] = None
 
 
+class BorrowResponse(BaseModel):
+    id: int
+    duration: int
+    status: str
+    bookgroup: BookgroupResponse
+    user: UserResponse
+    staff: UserResponse
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class BorrowPageableResponse(BaseModel):
+    borrows: list[BorrowResponse]
+
+    total_pages: int
+    total_data: int
+
+    class Config:
+        from_attributes = True
 

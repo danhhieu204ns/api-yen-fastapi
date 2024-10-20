@@ -12,6 +12,7 @@ router = APIRouter(
 )
 
 @router.get("/all", 
+            status_code=status.HTTP_200_OK, 
             response_model=List[schemas.BookResponse])
 async def get_book_all(db: Session = Depends(database.get_db), 
                             limit: int = 5, 
@@ -22,7 +23,8 @@ async def get_book_all(db: Session = Depends(database.get_db),
 
 
 @router.get("/pageable", 
-            status_code=status.HTTP_200_OK)
+            status_code=status.HTTP_200_OK, 
+            response_model=List[schemas.BookResponse])
 async def get_book_pageable(page: int, 
                               page_size: int, 
                               db: Session = Depends(get_db)):
@@ -31,6 +33,7 @@ async def get_book_pageable(page: int,
 
 
 @router.get("/{book_id}", 
+            status_code=status.HTTP_200_OK, 
             response_model=schemas.BookResponse)
 async def get_book_by_id(book_id: int, 
                           db: Session = Depends(database.get_db)):

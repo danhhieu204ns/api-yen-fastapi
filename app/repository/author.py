@@ -8,9 +8,6 @@ def get_author_by_id(author_id: int,
                      db: Session):
     
     author = utils.query_author_by_id(db, author_id).first()
-    if not author:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, 
-                            detail="Not found author")
     
     return author
 
@@ -56,10 +53,8 @@ def update_author(author_id: int,
                   new_author: schemas.AuthorCreate, 
                   db: Session, 
                   current_user):
+    
     author_query = utils.query_author_by_id(db, author_id)
-    if not author_query.first():
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, 
-                            detail="Not found")
      
     if current_user.role_id != utils.get_role_by_name(db, "admin").id:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, 
@@ -74,10 +69,8 @@ def update_author(author_id: int,
 def delete_author(author_id: int, 
                   db: Session, 
                   current_user):
+    
     author_query = utils.query_author_by_id(db, author_id)
-    if not author_query.first():
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, 
-                            detail="Not found")
      
     if current_user.role_id != utils.get_role_by_name(db, "admin").id:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, 

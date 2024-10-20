@@ -12,6 +12,7 @@ router = APIRouter(
 )
 
 @router.get("/all", 
+            status_code=status.HTTP_200_OK, 
             response_model=List[schemas.PublisherResponse])
 async def get_publisher_all(db: Session = Depends(database.get_db), 
                             limit: int = 5, 
@@ -31,6 +32,7 @@ async def get_publisher_pageable(page: int,
 
 
 @router.get("/{publisher_id}", 
+            status_code=status.HTTP_200_OK, 
             response_model=schemas.PublisherResponse)
 async def get_publisher_by_id(publisher_id: int, 
                               db: Session = Depends(database.get_db)):
@@ -49,8 +51,8 @@ async def create_publisher(new_publisher: schemas.PublisherCreate,
 
 
 @router.put("/update/{publisher_id}", 
-            response_model=schemas.PublisherResponse, 
-            status_code=status.HTTP_200_OK)
+            status_code=status.HTTP_200_OK, 
+            response_model=schemas.PublisherResponse)
 async def update_publisher(publisher_id: int, 
                            new_publisher: schemas.PublisherUpdate, 
                            db: Session = Depends(database.get_db), 
@@ -59,7 +61,8 @@ async def update_publisher(publisher_id: int,
     return publisher.update_publisher(publisher_id, new_publisher, db, current_user)
 
 
-@router.delete("/delete/{publisher_id}")
+@router.delete("/delete/{publisher_id}", 
+               status_code=status.HTTP_200_OK, )
 async def delete_publisher(publisher_id: int, 
                            db: Session = Depends(database.get_db), 
                            current_user = Depends(oauth2.get_current_user)):
