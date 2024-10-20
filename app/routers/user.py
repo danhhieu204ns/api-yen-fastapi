@@ -19,21 +19,31 @@ async def create_user(user_info: schemas.UserCreate,
     return user.create_user(user_info, db)
 
 
-# @router.get("/{id}", 
-#             response_model=schemas.UserResponse)
-# async def get_user_byid(id: int, 
-#                         db: Session = Depends(database.get_db)):
+@router.get("/all", 
+            status_code=status.HTTP_200_OK,  
+            response_model=list[schemas.UserResponse])
+async def get_all_user(db: Session = Depends(database.get_db)):
     
-#     return user.get_user_byid(id, db)
+    return user.get_all_user(db)
 
 
-# @router.put("/update_info", 
-#             response_model=schemas.UserResponse)
-# async def updateUser(newUser: schemas.UserUpdate, 
-#                      db: Session = Depends(database.get_db), 
-#                      current_user = Depends(oauth2.get_current_user)):
+@router.get("/{id}", 
+            status_code=status.HTTP_200_OK,  
+            response_model=schemas.UserResponse)
+async def get_user_by_id(id: int, 
+                        db: Session = Depends(database.get_db)):
+    
+    return user.get_user_by_id(id, db)
 
-#     return user.updateUser(newUser, db, current_user)
+
+@router.put("/update", 
+            status_code=status.HTTP_202_ACCEPTED,  
+            response_model=schemas.UserResponse)
+async def update_user(newUser: schemas.UserUpdate, 
+                      db: Session = Depends(database.get_db), 
+                      current_user = Depends(oauth2.get_current_user)):
+
+    return user.update_user(newUser, db, current_user)
 
 
 # @router.put("/update_pwd")

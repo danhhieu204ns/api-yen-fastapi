@@ -19,9 +19,6 @@ def get_publisher_by_id(publisher_id: int,
                       db: Session):
     
     publisher = utils.query_publisher_by_id(db, publisher_id).first()
-    if not publisher:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
-                            detail=f"Not found publisher")
     
     return publisher
 
@@ -61,10 +58,8 @@ def update_publisher(publisher_id: int,
                      new_publisher: schemas.PublisherUpdate, 
                      db: Session, 
                      current_user):
+    
     publisher_query = utils.query_publisher_by_id(db, publisher_id)
-    if not publisher_query.first():
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, 
-                            detail="Not found publisher")
      
     if current_user.role_id != utils.get_role_by_name(db, "admin").id:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, 
@@ -79,10 +74,8 @@ def update_publisher(publisher_id: int,
 def delete_publisher(publisher_id: int, 
                   db: Session, 
                   current_user):
+    
     publisher_query = utils.query_publisher_by_id(db, publisher_id)
-    if not publisher_query.first():
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, 
-                            detail="Not found publisher")
      
     if current_user.role_id != utils.get_role_by_name(db, "admin").id:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, 

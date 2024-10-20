@@ -97,3 +97,20 @@ class Book(Base):
     bookgroup = relationship("Bookgroup", foreign_keys=[bookgroup_id])
     
 
+class Borrow(Base):
+    __tablename__ = "borrows"
+
+    id = Column(Integer, primary_key=True, nullable=False)
+    duration = Column(Integer, nullable=False)
+    status = Column(String, nullable=False)
+    created_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=text('now()'))
+
+    bookgroup_id = Column(Integer, ForeignKey("bookgroups.id", ondelete="CASCADE"), nullable=False)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    staff_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+
+    bookgroup = relationship("Bookgroup", foreign_keys=[bookgroup_id])
+    user = relationship("User", foreign_keys=[user_id])
+    staff = relationship("User", foreign_keys=[staff_id])
+
+    

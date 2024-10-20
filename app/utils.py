@@ -74,14 +74,14 @@ def query_bookgroup_by_id(db, bookgroup_id):
     bookgroup_query = db.query(models.Bookgroup).filter(models.Bookgroup.id == bookgroup_id)
     return bookgroup_query
 
-def query_bookgroup_all(db, limit, skip, search):
-    bookgroup_query = db.query(models.Bookgroup).limit(limit).offset(skip)
+def query_bookgroup_all(db):
+    bookgroup_query = db.query(models.Bookgroup)
     return bookgroup_query
 
 
 # Books
-def query_book_by_id(db, genre_id):
-    book_query = db.query(models.Book).filter(models.Book.id == genre_id)
+def query_book_by_id(db, book_id):
+    book_query = db.query(models.Book).filter(models.Book.id == book_id)
     return book_query
 
 def query_book_all(db, limit, skip, search):
@@ -89,7 +89,14 @@ def query_book_all(db, limit, skip, search):
     return book_query
 
 
+# Borrow
+def query_borrow_by_id(db, borrow_id):
+    borrow_query = db.query(models.Borrow).filter(models.Borrow.id == borrow_id)
+    return borrow_query
 
+def query_borrow_all(db, limit, skip, search):
+    borrow_query = db.query(models.Borrow).limit(limit).offset(skip)
+    return borrow_query
 
 
 
