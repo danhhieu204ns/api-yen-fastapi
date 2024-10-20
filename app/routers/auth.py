@@ -21,7 +21,10 @@ async def login_user(user_credentials: OAuth2PasswordRequestForm = Depends(),
                             detail="Invalid Credentials!")
     
     access_token = oauth2.create_access_token(data={"user_id": user.id})
-    
+
+    role = db.query(models.Role).filter(models.Role.id == user.role_id).first()
+
     return {"access_token": access_token,
             "token_type": "bearer", 
-            "user": user}
+            "user": user, 
+            "role": role.name}
