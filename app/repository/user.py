@@ -11,7 +11,7 @@ def create_user(user: schemas.UserCreate,
     username = db.query(models.User).filter(models.User.username == user.username).first()
     if username:
         raise HTTPException(status_code=status.HTTP_406_NOT_ACCEPTABLE,
-                            detail=f"Email is already exist.")
+                            detail=f"Username is already exist.")
     
     if user.password.__len__() < 8:
         raise HTTPException(status_code=status.HTTP_406_NOT_ACCEPTABLE,
@@ -40,7 +40,7 @@ def create_user(user: schemas.UserCreate,
     db.commit()
     db.refresh(newUser)
 
-    return newUser
+    return {"user": newUser}
 
 
 def get_all_user(db: Session):
@@ -59,9 +59,9 @@ def get_user_by_id(id: int,
     return user
 
 
-def updateUser(newUser: schemas.UserUpdate, 
-               db: Session, 
-               current_user):
+def update_user(newUser: schemas.UserUpdate, 
+                db: Session, 
+                current_user):
 
     user = db.query(models.User).filter(models.User.id == current_user.id)
     
