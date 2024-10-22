@@ -4,7 +4,6 @@ from . import models
 from .database import engine
 from .routers import auth, role, admin, user, author, publisher, genre, bookgroup, book, borrow
 
-
 models.Base.metadata.create_all(bind=engine)
 
 app = FastAPI()
