@@ -1,4 +1,7 @@
-from fastapi import status, APIRouter, Depends
+import base64
+from datetime import date
+from typing import Optional
+from fastapi import File, Form, UploadFile, status, APIRouter, Depends
 from .. import schemas, database, oauth2
 from ..repository import user
 from sqlalchemy.orm import Session
@@ -12,10 +15,27 @@ router = APIRouter(
 
 @router.post("/register", 
              status_code=status.HTTP_201_CREATED)
-async def create_user(user_info: schemas.UserCreate, 
-                      db: Session = Depends(database.get_db)):
-    
-    return user.create_user(user_info, db)
+async def create_user(
+    db: Session = Depends(database.get_db), 
+    username: str = Form(...),
+    password: str = Form(...),
+    name: str = Form(...),
+    birthdate: date = Form(...),
+    address: str = Form(...),
+    phone_number: str = Form(...),
+    image: str = Form(...)
+):
+    user_data = schemas.UserCreate(
+        username=username,
+        password=password,
+        name=name,
+        birthdate=birthdate,
+        address=address,
+        phone_number=phone_number,
+        image=image
+    )
+
+    return user.create_user(user_data, db)
 
 
 @router.get("/all", 

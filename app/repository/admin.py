@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 def get_all_admin(db: Session, 
                   current_user):
     
-    admins = db.query(models.User).filter(models.User.role_id == utils.get_role_by_name(db, "admin").id).all()
+    admins = db.query(models.UserInfo).filter(models.UserInfo.role_id == utils.get_role_by_name(db, "admin").id).all()
     
     return admins
 
@@ -16,8 +16,8 @@ def get_admin_by_id(id: int,
                     db: Session, 
                     current_user):
     
-    admin = db.query(models.User).filter(models.User.id == id, 
-                                         models.User.role_id == utils.get_role_by_name(db, "admin").id).first()
+    admin = db.query(models.UserInfo).filter(models.UserInfo.id == id, 
+                                         models.UserInfo.role_id == utils.get_role_by_name(db, "admin").id).first()
     
     return admin
 

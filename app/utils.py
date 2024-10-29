@@ -1,4 +1,6 @@
 from passlib.context import CryptContext
+import re
+from fastapi import HTTPException, status
 from . import models
 
 
@@ -30,12 +32,12 @@ def query_role_by_id(db, role_id):
 
 # Users
 def get_user_by_id(db, user_id):
-    user = db.query(models.User).filter(models.User.id == user_id).first()
+    user = db.query(models.UserInfo).filter(models.UserInfo.id == user_id).first()
     return user
 
 def get_admin_by_id(db, user_id):
-    admin = db.query(models.User).filter(models.User.id == user_id, 
-                                         models.User.role_id == get_role_by_name(db, models, "admin")).first()
+    admin = db.query(models.UserInfo).filter(models.UserInfo.id == user_id, 
+                                         models.UserInfo.role_id == get_role_by_name(db, models, "admin")).first()
     return admin
 
 
@@ -99,5 +101,43 @@ def query_borrow_all(db, limit, skip, search):
     return borrow_query
 
 
+
+
+def validate_user_credentials(username, password):
+    if username:
+        raise HTTPException(
+            status_code=status.HTTP_406_NOT_ACCEPTABLE,
+            detail="Tên đăng nhập đã tồn tại."
+        )
+    
+    if len(password) < 8:
+        raise HTTPException(
+            status_code=status.HTTP_406_NOT_ACCEPTABLE,
+            detail="Mật khẩu phải có ít nhất 8 kí tự."
+        )
+    
+    if not re.search(r'[A-Z]', password):
+        raise HTTPException(
+            status_code=status.HTTP_406_NOT_ACCEPTABLE,
+            detail="Mật khẩu phải có ít nhất 1 kí tự in hoa."
+        )
+    
+    if not re.search(r'[a-z]', password):
+        raise HTTPException(
+            status_code=status.HTTP_406_NOT_ACCEPTABLE,
+            detail="Mật khẩu phải có ít nhất 1 kí tự in thường."
+        )
+    
+    if not re.search(r'[0-9]', password):
+        raise HTTPException(
+            status_code=status.HTTP_406_NOT_ACCEPTABLE,
+            detail="Mật khẩu phải có ít nhất 1 chữ số."
+        )
+    
+    if not re.search(r'[!@#$%^&*(),.?":{}|<>]', password):
+        raise HTTPException(
+            status_code=status.HTTP_406_NOT_ACCEPTABLE,
+            detail="Mật khẩu phải có ít nhất 1 kí tự đặc biệt."
+        )
 
 

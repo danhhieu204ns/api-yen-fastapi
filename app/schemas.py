@@ -1,4 +1,5 @@
-from pydantic import BaseModel, EmailStr
+from fastapi import Form
+from pydantic import BaseModel
 from typing import Optional
 from datetime import datetime, date
 
@@ -37,11 +38,11 @@ class UserCreate(BaseModel):
     birthdate: date
     address: str
     phone_number: str
+    image: str
 
 
 class UserResponse(BaseModel):
     id: int
-    username: str
     name: str
     birthdate: date
     address: str
