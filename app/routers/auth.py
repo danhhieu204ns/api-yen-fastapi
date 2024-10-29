@@ -11,20 +11,20 @@ router = APIRouter(tags=["Login"])
 async def login_user(user_credentials: OAuth2PasswordRequestForm = Depends(),
                      db: Session = Depends(get_db)):
     
-    user = db.query(models.User).filter(models.User.username == user_credentials.username).first()
+    user_auth = db.query(models.UserAuth).filter(models.UserAuth.username == user_credentials.username).first()
 
-    if not user:
+    if not user_auth:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
                             detail="Invalid Credentials!")
-    if not utils.verify(user_credentials.password, user.password):
+    if not utils.verify(user_credentials.password, user_auth.password):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
                             detail="Invalid Credentials!")
     
-    access_token = oauth2.create_access_token(data={"user_id": user.id})
-
-    role = db.query(models.Role).filter(models.Role.id == user.role_id).first()
+    user_info = db.query(models.UserInfo).filter(models.UserInfo.id == user_auth.user_id).first()
+    access_token = oauth2.create_access_token(data={"user_id": user_auth.id})
+    role = db.query(models.Role).filter(models.Role.id == user_info.role_id).first()
 
     return {"access_token": access_token,
             "token_type": "bearer", 
-            "user": user, 
+            "user": user_info, 
             "role": role.name}

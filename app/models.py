@@ -14,12 +14,10 @@ class Role(Base):
     created_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=text('now()'))
 
 
-class User(Base):
-    __tablename__ = "users"
+class UserInfo(Base):
+    __tablename__ = "user_infos"
 
     id = Column(Integer, primary_key=True, nullable=False)
-    username = Column(String, nullable=False, unique=True)
-    password = Column(String, nullable=False)
     name = Column(String, nullable=False)
     birthdate = Column(Date, nullable=False)
     address = Column(String, nullable=False)
@@ -27,6 +25,17 @@ class User(Base):
     created_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=text('now()'))
 
     role_id = Column(Integer, ForeignKey("roles.id", ondelete="CASCADE"), nullable=False)
+
+
+class UserAuth(Base):
+    __tablename__ = "user_auths"
+
+    id = Column(Integer, primary_key=True, nullable=False)
+    username = Column(String, nullable=False, unique=True)
+    password = Column(String, nullable=False)
+    created_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=text('now()'))
+
+    user_id = Column(Integer, ForeignKey("user_infos.id", ondelete="CASCADE"), nullable=False)
 
 
 class Author(Base):
@@ -49,12 +58,6 @@ class Genre(Base): # the loai
     age_limit = Column(Integer, nullable=False)
     description = Column(String, nullable=False)
     created_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=text('now()'))
-
-    # user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
-    # group_id = Column(Integer, ForeignKey("groups.id", ondelete="CASCADE"), nullable=False)
-    # inviter_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
-    
-    # info = relationship("User", foreign_keys=[user_id])
 
 
 class Publisher(Base):
@@ -106,11 +109,11 @@ class Borrow(Base):
     created_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=text('now()'))
 
     bookgroup_id = Column(Integer, ForeignKey("bookgroups.id", ondelete="CASCADE"), nullable=False)
-    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
-    staff_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    user_id = Column(Integer, ForeignKey("user_infos.id", ondelete="CASCADE"), nullable=False)
+    staff_id = Column(Integer, ForeignKey("user_infos.id", ondelete="CASCADE"), nullable=False)
 
     bookgroup = relationship("Bookgroup", foreign_keys=[bookgroup_id])
-    user = relationship("User", foreign_keys=[user_id])
-    staff = relationship("User", foreign_keys=[staff_id])
+    user = relationship("UserInfo", foreign_keys=[user_id])
+    staff = relationship("UserInfo", foreign_keys=[staff_id])
 
     

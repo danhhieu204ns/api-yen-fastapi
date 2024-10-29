@@ -1,51 +1,55 @@
-from fastapi import status, HTTPException
-from .. import models, schemas, utils
+import base64, os
+from fastapi import HTTPException
 from sqlalchemy.orm import Session
-import re
+from .. import models, schemas, utils
+from ..face_recognition import add_new_user
 
 
+UPLOAD_FOLDER = "app/face_recognition/image"
 
 def create_user(user: schemas.UserCreate, 
                 db: Session):
     
-    username = db.query(models.User).filter(models.User.username == user.username).first()
-    if username:
-        raise HTTPException(status_code=status.HTTP_406_NOT_ACCEPTABLE,
-                            detail=f"Username is already exist.")
-    
-    if user.password.__len__() < 8:
-        raise HTTPException(status_code=status.HTTP_406_NOT_ACCEPTABLE,
-                            detail=f"Password must be at least 8 characters long.")
-    
-    if not re.search(r'[A-Z]', user.password):
-        raise HTTPException(status_code=status.HTTP_406_NOT_ACCEPTABLE,
-                            detail=f"Password must contain at least one uppercase letter.")
+    username = db.query(models.UserAuth).filter(models.UserAuth.username == user.username).first()
+    try:
+        utils.validate_user_credentials(username, user.password)
+        role = db.query(models.Role).filter(models.Role.name == "user").first()
+        new_info = models.UserInfo(
+            name=user.name, 
+            birthdate=user.birthdate, 
+            address=user.address, 
+            phone_number=user.phone_number, 
+            role_id=role.id
+        )
+        db.add(new_info)
+        db.commit()
+        db.refresh(new_info)
 
-    if not re.search(r'[a-z]', user.password):
-        raise HTTPException(status_code=status.HTTP_406_NOT_ACCEPTABLE,
-                            detail=f"Password must contain at least one lowercase letter.")
-    
-    if not re.search(r'[0-9]', user.password):
-        raise HTTPException(status_code=status.HTTP_406_NOT_ACCEPTABLE,
-                            detail=f"Password must contain at least one number.")
+        new_auth = models.UserAuth(
+            username=user.username, 
+            password=utils.hash(user.password), 
+            user_id=new_info.id)
+        db.add(new_auth)
+        db.commit()
+        
+        header, encoded = user.image.split(",", 1)
+        image_data = base64.b64decode(encoded)
+        filename = f"{new_info.id}.jpg"
+        file_path = os.path.join(UPLOAD_FOLDER, filename)
+        with open(file_path, "wb") as image_file:
+            image_file.write(image_data)
+        
+        add_new_user.add_new_user(file_path, new_info.id)
 
-    if not re.search(r'[!@#$%^&*(),.?":{}|<>]', user.password):
-        raise HTTPException(status_code=status.HTTP_406_NOT_ACCEPTABLE,
-                            detail=f"Password must contain at least one special character.")
+        return {"user": new_info}
     
-    role = db.query(models.Role).filter(models.Role.name == "user").first()
-    user.password = utils.hash(user.password)
-    newUser = models.User(**user.dict(), role_id = role.id)
-    db.add(newUser)
-    db.commit()
-    db.refresh(newUser)
-
-    return {"user": newUser}
+    except HTTPException as e:
+        print(e.detail)
 
 
 def get_all_user(db: Session):
     
-    users = db.query(models.User).filter(models.User.role_id == utils.get_role_by_name(db, "user").id).all()
+    users = db.query(models.UserInfo).filter(models.UserInfo.role_id == utils.get_role_by_name(db, "user").id).all()
     
     return users
 
@@ -53,8 +57,8 @@ def get_all_user(db: Session):
 def get_user_by_id(id: int, 
                    db: Session):
     
-    user = db.query(models.User).filter(models.User.id == id, 
-                                        models.User.role_id == utils.get_role_by_name(db, "user").id).first()
+    user = db.query(models.UserInfo).filter(models.UserInfo.id == id, 
+                                        models.UserInfo.role_id == utils.get_role_by_name(db, "user").id).first()
     
     return user
 
@@ -63,7 +67,7 @@ def update_user(newUser: schemas.UserUpdate,
                 db: Session, 
                 current_user):
 
-    user = db.query(models.User).filter(models.User.id == current_user.id)
+    user = db.query(models.UserInfo).filter(models.UserInfo.id == current_user.id)
     
     user.update(newUser.dict(), synchronize_session=False)
     db.commit()

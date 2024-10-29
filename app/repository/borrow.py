@@ -52,7 +52,7 @@ def create_borrow(new_borrow: schemas.BorrowResponse,
                             detail="Not permission")
 
     borrow = models.Borrow(**new_borrow.dict(), 
-                           status = "pending")
+                           status = "Đang chờ xác nhận")
     db.add(borrow)
     db.commit()
     
