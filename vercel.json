@@ -2,6 +2,11 @@
     "version": 2,
     "builds": [
       {
+        "env": {
+          "PYTHON_VERSION": "3.10"
+        }
+      },
+      {
         "src": "app/main.py",
         "use": "@vercel/python"
       }
