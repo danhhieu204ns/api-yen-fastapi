@@ -150,8 +150,8 @@ class PublisherResponse(BaseModel):
 
 
 
-# Bookgroup
-class BookgroupCreate(BaseModel):
+# Book
+class BookCreate(BaseModel):
     name: str
     status: str
     content: str
@@ -160,7 +160,7 @@ class BookgroupCreate(BaseModel):
     genre_id: int
 
 
-class BookgroupResponse(BaseModel):
+class BookResponse(BaseModel):
     id: int
     name: str
     status: str
@@ -175,8 +175,8 @@ class BookgroupResponse(BaseModel):
         from_attributes = True
 
 
-class BookgroupPageableResponse(BaseModel):
-    bookgroups: list[BookgroupResponse]
+class BookPageableResponse(BaseModel):
+    books: list[BookResponse]
 
     total_pages: int
     total_data: int
@@ -185,7 +185,7 @@ class BookgroupPageableResponse(BaseModel):
         from_attributes = True
 
 
-class BookgroupUpdate(BaseModel):
+class BookUpdate(BaseModel):
     name: Optional[str] = None
     status: Optional[str] = None
     content: Optional[str] = None
@@ -195,35 +195,16 @@ class BookgroupUpdate(BaseModel):
 
 
 
-# Book
-class BookCreate(BaseModel):
-    bookgroup_id: int
-
-
-class BookResponse(BaseModel):
-    id: int
-    
-    bookgroup: BookgroupResponse
-
-    class Config:
-        from_attributes = True
-
-
-class BookUpdate(BaseModel):
-    bookgroup_id: Optional[int] = None
-
-
-
 # Borrow
 class BorrowCreate(BaseModel):
-    bookgroup_id: int
+    book_id: int
     user_id: int
-    staff_id: int
+    staff_id: Optional[int] = None
     duration: int
 
 
 class BorrowUpdate(BaseModel):
-    bookgroup_id: Optional[int] = None
+    book_id: Optional[int] = None
     user_id: Optional[int] = None
     staff_id: Optional[int] = None
     duration: Optional[int] = None
@@ -234,9 +215,9 @@ class BorrowResponse(BaseModel):
     id: int
     duration: int
     status: str
-    bookgroup: BookgroupResponse
+    book: BookResponse
     user: UserResponse
-    staff: UserResponse
+    staff: Optional[UserResponse]
     created_at: datetime
 
     class Config:

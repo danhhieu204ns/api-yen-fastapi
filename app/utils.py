@@ -71,24 +71,15 @@ def query_genre_all(db, limit, skip, search):
     return genre_query
 
 
-# Bookgroups
-def query_bookgroup_by_id(db, bookgroup_id):
-    bookgroup_query = db.query(models.Bookgroup).filter(models.Bookgroup.id == bookgroup_id)
-    return bookgroup_query
-
-def query_bookgroup_all(db):
-    bookgroup_query = db.query(models.Bookgroup)
-    return bookgroup_query
-
-
 # Books
 def query_book_by_id(db, book_id):
     book_query = db.query(models.Book).filter(models.Book.id == book_id)
     return book_query
 
-def query_book_all(db, limit, skip, search):
-    book_query = db.query(models.Book).limit(limit).offset(skip)
+def query_book_all(db):
+    book_query = db.query(models.Book)
     return book_query
+
 
 
 # Borrow

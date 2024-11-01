@@ -43,7 +43,20 @@ def get_borrow_pageable(page: int,
     return borrow_pageable_res
 
 
-def create_borrow(new_borrow: schemas.BorrowResponse, 
+def create_borrow_by_user(
+    new_borrow: schemas.BorrowResponse, 
+    db: Session, 
+    current_user
+):
+    borrow = models.Borrow(**new_borrow.dict(), 
+                           status = "Đang chờ xác nhận")
+    db.add(borrow)
+    db.commit()
+    
+    return borrow
+
+
+def create_borrow_by_admin(new_borrow: schemas.BorrowResponse, 
                   db: Session, 
                   current_user):
  
@@ -52,7 +65,7 @@ def create_borrow(new_borrow: schemas.BorrowResponse,
                             detail="Not permission")
 
     borrow = models.Borrow(**new_borrow.dict(), 
-                           status = "Đang chờ xác nhận")
+                           status = "Đang mượn")
     db.add(borrow)
     db.commit()
     

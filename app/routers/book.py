@@ -15,16 +15,14 @@ router = APIRouter(
             status_code=status.HTTP_200_OK, 
             response_model=List[schemas.BookResponse])
 async def get_book_all(db: Session = Depends(database.get_db), 
-                            limit: int = 5, 
-                            skip: int = 0, 
                             search: Optional[str] = ''):
     
-    return book.get_book_all(db, limit, skip, search)
+    return book.get_book_all(db)
 
 
 @router.get("/pageable", 
             status_code=status.HTTP_200_OK, 
-            response_model=List[schemas.BookResponse])
+            response_model=schemas.BookPageableResponse)
 async def get_book_pageable(page: int, 
                               page_size: int, 
                               db: Session = Depends(get_db)):
@@ -51,23 +49,31 @@ async def create_book(new_book: schemas.BookCreate,
     return book.create_book(new_book, db, current_user)
 
 
+@router.put("/update/{book_id}", 
+            status_code=status.HTTP_200_OK, 
+            response_model=schemas.BookResponse)
+async def update_book(book_id: int, 
+                           new_book: schemas.BookCreate, 
+                           db: Session = Depends(database.get_db), 
+                           current_user = Depends(oauth2.get_current_user)):
+
+    return book.update_book(book_id, new_book, db, current_user)
 
 
-
-# @router.put("/update/{book_id}", 
-#             response_model=schemas.BookResponse, 
-#             status_code=status.HTTP_200_OK)
-# async def update_book(book_id: int, 
-#                            new_book: schemas.BookCreate, 
-#                            db: Session = Depends(database.get_db), 
-#                            current_user = Depends(oauth2.get_current_user)):
-
-#     return book.update_bookgroup(book_id, new_book, db, current_user)
-
-
-@router.delete("/delete/{book_id}")
+@router.delete("/delete/{book_id}", 
+               status_code=status.HTTP_200_OK, )
 async def delete_book(book_id: int, 
                        db: Session = Depends(database.get_db), 
                        current_user = Depends(oauth2.get_current_user)):
 
     return book.delete_book(book_id, db, current_user)
+
+
+
+@router.delete("/delete-many", 
+               status_code=status.HTTP_200_OK)
+async def delete_many_book(book_ids: schemas.DeleteMany, 
+                             db: Session = Depends(database.get_db), 
+                             current_user = Depends(oauth2.get_current_user)):
+    
+    return book.delete_many_book(book_ids, db, current_user)

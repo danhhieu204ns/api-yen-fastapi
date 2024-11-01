@@ -41,14 +41,24 @@ async def get_borrow_by_id(borrow_id: int,
     return borrow.get_borrow_by_id(borrow_id, db)
 
 
-@router.post("/create", 
+@router.post("/create/by_user", 
              status_code=status.HTTP_201_CREATED, 
              response_model=schemas.BorrowResponse)
-async def create_borrow(new_borrow: schemas.BorrowCreate, 
+async def create_borrow_by_user(new_borrow: schemas.BorrowCreate, 
                         db: Session = Depends(get_db), 
                         current_user = Depends(oauth2.get_current_user)):
 
-    return borrow.create_borrow(new_borrow, db, current_user)
+    return borrow.create_borrow_by_user(new_borrow, db, current_user)
+
+
+@router.post("/create/by_admin", 
+             status_code=status.HTTP_201_CREATED, 
+             response_model=schemas.BorrowResponse)
+async def create_borrow_by_admin(new_borrow: schemas.BorrowCreate, 
+                        db: Session = Depends(get_db), 
+                        current_user = Depends(oauth2.get_current_user)):
+
+    return borrow.create_borrow_by_admin(new_borrow, db, current_user)
 
 
 @router.put("/update/{borrow_id}", 
