@@ -17,9 +17,7 @@ def check_user(Path):
     MatchIndex = numpy.argmin(FaceDis) # Tìm chỉ số của khuôn mặt gần nhất
     
     if FaceDis[MatchIndex] < 0.5: # Kiểm tra xem khoảng cách có nhỏ hơn ngưỡng 0.5 không
-        return df.iloc[MatchIndex]["id"]
+        return int(df.iloc[MatchIndex]["id"])
     else:
-        return "Không tìm thấy người dùng"
+        return -1
 
-
-print(check_user("app/face_recognition/image/2.jpg"))

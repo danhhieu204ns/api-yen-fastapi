@@ -46,6 +46,18 @@ async def get_all_user(db: Session = Depends(database.get_db)):
     return user.get_all_user(db)
 
 
+@router.get("/pageable", 
+            status_code=status.HTTP_200_OK, 
+            response_model=schemas.UserPageableResponse)
+async def get_user_pageable(
+        page: int, 
+        page_size: int, 
+        db: Session = Depends(database.get_db)
+    ):
+     
+    return user.get_user_pageable(page, page_size, db)
+
+
 @router.get("/{id}", 
             status_code=status.HTTP_200_OK,  
             response_model=schemas.UserResponse)
@@ -71,3 +83,13 @@ async def update_user(newUser: schemas.UserUpdate,
 #                      current_user = Depends(oauth2.get_current_user)):
 
 #     return user.re_pwd(new_pwd, db, current_user)
+
+
+@router.post("/check", 
+               status_code=status.HTTP_200_OK, 
+               response_model=schemas.UserResponse)
+async def check_user(user_img: str = Form(...), 
+                    db: Session = Depends(database.get_db), 
+                    current_user = Depends(oauth2.get_current_user)):
+    
+    return user.check_user_img(user_img, db, current_user)

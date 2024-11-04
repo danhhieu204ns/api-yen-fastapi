@@ -1,4 +1,5 @@
 from fastapi import status, HTTPException
+from sqlalchemy import or_
 from sqlalchemy.orm import Session
 from typing import Optional
 from .. import schemas, models, utils
@@ -25,6 +26,50 @@ def get_borrow_by_id(borrow_id: int,
     return borrow
 
 
+def get_borrow_by_user(
+        db: Session,
+        current_user
+    ):
+    
+    borrows = db.query(models.Borrow).filter(models.Borrow.user_id == current_user.id).all()
+    
+    return borrows
+
+
+def get_borrow_with_user_id(
+        user_id: int,
+        db: Session,
+        current_user
+    ):
+    
+    borrows = db.query(models.Borrow).filter(
+        models.Borrow.user_id == user_id,
+        or_(
+            models.Borrow.status == "Đang mượn",
+            models.Borrow.status == "Đã quá hạn"
+        )
+    ).all()
+    
+    return borrows
+
+
+def get_borrow_with_user_id_and_book_id(
+        return_info: schemas.BorrowReturnInfo, 
+        db: Session,
+        current_user
+    ):
+    
+    borrows = db.query(models.Borrow).filter(
+        models.Borrow.user_id == return_info.user_id,
+        models.Borrow.book_id == return_info.book_id,
+        or_(
+            models.Borrow.status == "Đang mượn",
+            models.Borrow.status == "Đã quá hạn"
+        )
+    ).first()
+    return borrows
+
+
 def get_borrow_pageable(page: int, 
                         page_size: int, 
                         db: Session):
@@ -44,10 +89,24 @@ def get_borrow_pageable(page: int,
 
 
 def create_borrow_by_user(
-    new_borrow: schemas.BorrowResponse, 
+    new_borrow: schemas.BorrowCreate, 
     db: Session, 
     current_user
 ):
+    exitsed_borrow = db.query(models.Borrow).filter(
+        models.Borrow.user_id == new_borrow.user_id,
+        models.Borrow.book_id == new_borrow.book_id,
+        or_(
+            models.Borrow.status == "Đang mượn",
+            models.Borrow.status == "Đã quá hạn",
+            models.Borrow.status == "Đã chờ xác nhận"
+        )
+    ).first()
+
+    if exitsed_borrow:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, 
+                            detail="Bạn đã có đơn mượn cuốn sách này rồi!!")
+
     borrow = models.Borrow(**new_borrow.dict(), 
                            status = "Đang chờ xác nhận")
     db.add(borrow)
@@ -63,6 +122,20 @@ def create_borrow_by_admin(new_borrow: schemas.BorrowResponse,
     if current_user.role_id != utils.get_role_by_name(db, "admin").id:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, 
                             detail="Not permission")
+
+    exitsed_borrow = db.query(models.Borrow).filter(
+        models.Borrow.user_id == new_borrow.user_id,
+        models.Borrow.book_id == new_borrow.book_id,
+        or_(
+            models.Borrow.status == "Đang mượn",
+            models.Borrow.status == "Đã quá hạn",
+            models.Borrow.status == "Đã chờ xác nhận"
+        )
+    ).first()
+
+    if exitsed_borrow:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, 
+                            detail="Người dùng đã có đơn mượn cuốn sách này rồi!!")
 
     borrow = models.Borrow(**new_borrow.dict(), 
                            status = "Đang mượn")
@@ -87,6 +160,38 @@ def update_borrow(borrow_id: int,
     db.commit()
     
     return borrow_query.first()
+
+
+def cancel_borrow_by_user(
+        borrow_id: int, 
+        db: Session,
+        current_user
+):
+    borrow = db.query(models.Borrow).filter(models.Borrow.id == borrow_id)
+
+    borrow.update(
+        {"status": "Đã hủy"},
+        synchronize_session=False
+    )
+    db.commit()
+
+    return borrow.first()
+
+
+def return_borrow_by_user(
+        borrow_id: int, 
+        db: Session,
+        current_user
+):
+    borrow = db.query(models.Borrow).filter(models.Borrow.id == borrow_id)
+
+    borrow.update(
+        {"status": "Đã trả"},
+        synchronize_session=False
+    )
+    db.commit()
+
+    return borrow.first()
 
 
 def delete_borrow(borrow_id: int, 

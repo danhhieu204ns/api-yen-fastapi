@@ -4,6 +4,10 @@ from typing import Optional
 from datetime import datetime, date
 
 
+class DeleteMany(BaseModel):
+    list_id: list[int]
+
+
 # Token
 class Token(BaseModel):
     access_token: str
@@ -25,9 +29,21 @@ class RoleAssign(BaseModel):
     user_id: int
 
 
+class RoleResponse(BaseModel):
+    name: str
+
+    class Config:
+        from_attributes = True
+
+
 class RoleDelete(RoleCreate):
     pass
 
+class UserAuthResponse(BaseModel):
+    username: str
+
+    class Config:
+        from_attributes = True
 
 
 # User
@@ -47,8 +63,22 @@ class UserResponse(BaseModel):
     birthdate: date
     address: str
     phone_number: str
+    status: bool
     created_at: datetime
+
+    role: RoleResponse
+    user_auth: UserAuthResponse
     
+    class Config:
+        from_attributes = True
+
+
+class UserPageableResponse(BaseModel):
+    users: list[UserResponse]
+
+    total_pages: int
+    total_data: int
+
     class Config:
         from_attributes = True
 
@@ -63,9 +93,6 @@ class UserUpdate(BaseModel):
 class UserRePwd(BaseModel):
     new_pwd: str
 
-
-class DeleteMany(BaseModel):
-    list_id: list[int]
 
 
 # Author
@@ -209,6 +236,11 @@ class BorrowUpdate(BaseModel):
     staff_id: Optional[int] = None
     duration: Optional[int] = None
     status: Optional[str] = None
+
+
+class BorrowReturnInfo(BaseModel):
+    book_id: int
+    user_id: int
 
 
 class BorrowResponse(BaseModel):
