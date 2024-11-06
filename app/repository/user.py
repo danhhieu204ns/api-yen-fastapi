@@ -42,7 +42,7 @@ def create_user(user: schemas.UserCreate, db: Session):
 
         header, encoded = user.image.split(",", 1)
         image_data = base64.b64decode(encoded)
-        filename = f"{new_auth.id}.jpg"
+        filename = f"{new_info.id}.jpg"
         file_path = os.path.join(UPLOAD_FOLDER, filename)
         
         with open(file_path, "wb") as image_file:
@@ -151,12 +151,8 @@ def check_user_img(
         image_file.write(image_data)
     
     try:
-        user_auth_id = check_user.check_user(file_path)
-        user_auth = db.query(models.UserAuth).filter(models.UserAuth.id == user_auth_id).first()
-        
-        if not user_auth:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Not found!")
-        user_info = db.query(models.UserInfo).filter(models.UserInfo.id == user_auth.user_id).first()
+        user_info_id = check_user.check_user(file_path)
+        user_info = db.query(models.UserInfo).filter(models.UserInfo.id == user_info_id).first()
 
         return user_info
 
