@@ -88,11 +88,15 @@ class UserUpdate(BaseModel):
     birthdate: Optional[date] = None
     address: Optional[str] = None
     phone_number: Optional[str] = None
+    role: Optional[str] = None
 
 
 class UserRePwd(BaseModel):
-    new_pwd: str
+    username: str
 
+
+class UserUpdatePwd(BaseModel):
+    password: str
 
 
 # Author

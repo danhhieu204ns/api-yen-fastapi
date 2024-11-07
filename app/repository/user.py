@@ -104,31 +104,117 @@ def get_user_by_id(id: int,
     return user
 
 
-def update_user(newUser: schemas.UserUpdate, 
-                db: Session, 
-                current_user):
+def update_user(
+        user_id: int, 
+        newUser: schemas.UserUpdate, 
+        db: Session, 
+        current_user
+    ):
 
-    user = db.query(models.UserInfo).filter(models.UserInfo.id == current_user.id)
-    
-    user.update(newUser.dict(), synchronize_session=False)
+    user = db.query(models.UserInfo).filter(models.UserInfo.id == user_id)
+    role = db.query(models.Role).filter(models.Role.name == newUser.role).first()
+
+    user.update(
+        {
+            "name": str(newUser.name),
+            "birthdate": newUser.birthdate,  # Assuming date is already in correct format
+            "address": str(newUser.address),
+            "phone_number": str(newUser.phone_number),
+            "role_id": int(role.id)
+        }, 
+        synchronize_session=False
+    )
     db.commit()
-    db.refresh(user)
 
-    return user
+    return user.first()
 
 
-# def re_pwd(new_pwd: schemas.UserRePwd, 
-#            db: Session, 
-#            current_user):
+def update_pwd(new_pwd: schemas.UserUpdatePwd, 
+           db: Session, 
+           current_user):
     
-#     user = db.query(models.User).filter(models.User.id == current_user.id)
+    user = db.query(models.UserInfo).filter(models.UserInfo.id == current_user.id).first()
+    user_auth = db.query(models.UserAuth).filter(models.UserAuth.id == user.user_auth_id)
 
-#     new_pwd.password = utils.hash(new_pwd.password)
+    new_pwd.password = utils.hash(new_pwd.password)
 
-#     user.update(new_pwd.dict(), synchronize_session=False)
-#     db.commit()
+    user_auth.update(new_pwd.dict(), synchronize_session=False)
+    db.commit()
 
-#     return {"message": "Succes!"}
+    return {"message": "Succes!"}
+
+
+def re_pwd(new_pwd: schemas.UserRePwd, 
+           db: Session, 
+           current_user):
+    
+    user_auth = db.query(models.UserAuth).filter(models.UserAuth.username == new_pwd.username)
+
+    password = utils.hash("Kgdy@123")
+
+    user_auth.update(
+        {
+            "password": password,
+        }, 
+        synchronize_session=False
+    )
+    db.commit()
+
+    return {"message": "Succes!"}
+
+
+def deactivate_user(
+        user_id: int, 
+        db: Session, 
+        current_user
+    ):
+    
+    user_info = db.query(models.UserInfo).filter(models.UserInfo.id == user_id)
+
+    user_info.update(
+        {
+            "status": False,
+        }, 
+        synchronize_session=False
+    )
+    db.commit()
+
+    return {"message": "Succes!"}
+
+
+def activate_user(
+        user_id: int, 
+        db: Session, 
+        current_user
+    ):
+    
+    user_info = db.query(models.UserInfo).filter(models.UserInfo.id == user_id)
+
+    user_info.update(
+        {
+            "status": True,
+        }, 
+        synchronize_session=False
+    )
+    db.commit()
+
+    return {"message": "Succes!"}
+
+
+def delete_user(
+        user_id: int, 
+        db: Session, 
+        current_user
+    ):
+    
+    user_info = db.query(models.UserInfo).filter(models.UserInfo.id == user_id)
+
+    user_info.delete( 
+        synchronize_session=False
+    )
+    db.commit()
+
+    return {"message": "Succes!"}
 
 
 CHECK_FOLDER = "app/repository"
