@@ -10,13 +10,13 @@ router = APIRouter(
 )
 
 
-# @router.post("/register", 
-#              status_code=status.HTTP_201_CREATED, 
-#              response_model=schemas.UserResponse)
-# async def create_user(user_info: schemas.UserCreate, 
-#                       db: Session = Depends(database.get_db)):
+@router.post("/register", 
+             status_code=status.HTTP_201_CREATED, 
+             response_model=schemas.UserResponse)
+async def create_user(user_info: schemas.UserCreate, 
+                      db: Session = Depends(database.get_db)):
     
-#     return user.create_user(user_info, db)
+    return user.create_user(user_info, db)
 
 
 @router.get("/all", 
@@ -47,9 +47,9 @@ async def get_admin_by_id(id: int,
 #     return user.updateUser(newUser, db, current_user)
 
 
-# @router.put("/update_pwd")
-# async def updateUser(new_pwd: schemas.UserRePwd, 
-#                      db: Session = Depends(database.get_db), 
-#                      current_user = Depends(oauth2.get_current_user)):
+@router.put("/update_pwd")
+async def updateUser(new_pwd: schemas.UserRePwd, 
+                     db: Session = Depends(database.get_db), 
+                     current_user = Depends(oauth2.get_current_user)):
 
-#     return user.re_pwd(new_pwd, db, current_user)
+    return user.re_pwd(new_pwd, db, current_user)

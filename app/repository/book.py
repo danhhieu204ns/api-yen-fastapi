@@ -4,7 +4,6 @@ import os
 from fastapi import status, HTTPException
 from sqlalchemy.orm import Session
 from .. import schemas, models, utils
-from ..book_detect.check_book import predict_book
 
 
 
@@ -113,36 +112,3 @@ def delete_many_book(
 
     return {"message": "Xóa danh sách book thành công"}
 
-
-UPLOAD_FOLDER = "app/repository"
-
-def check_book(
-    book_img: str, 
-    db: Session, 
-    current_user
-):
-    if current_user.role_id != utils.get_role_by_name(db, "admin").id:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, 
-                            detail="Không có quyền thực hiện thao tác này")
-    
-    header, encoded = book_img.split(",", 1)
-    image_data = base64.b64decode(encoded)
-    filename = "tmp.jpg"
-    file_path = os.path.join(UPLOAD_FOLDER, filename)
-    
-    with open(file_path, "wb") as image_file:
-        image_file.write(image_data)
-    
-    try:
-        book_id = predict_book(file_path)
-
-        book = db.query(models.Book).filter(models.Book.id == book_id).first()
-        
-        if not book:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Not found!")
-        
-        return book
-
-    finally:
-        if os.path.exists(file_path):
-            os.remove(file_path)

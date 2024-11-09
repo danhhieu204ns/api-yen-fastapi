@@ -78,12 +78,3 @@ async def delete_many_book(book_ids: schemas.DeleteMany,
     
     return book.delete_many_book(book_ids, db, current_user)
 
-
-@router.post("/check", 
-               status_code=status.HTTP_200_OK, 
-               response_model=schemas.BookResponse)
-async def check_book(book_img: str = Form(...), 
-                    db: Session = Depends(database.get_db), 
-                    current_user = Depends(oauth2.get_current_user)):
-    
-    return book.check_book(book_img, db, current_user)

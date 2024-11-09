@@ -39,6 +39,8 @@ class RoleResponse(BaseModel):
 class RoleDelete(RoleCreate):
     pass
 
+
+
 class UserAuthResponse(BaseModel):
     username: str
 
@@ -54,7 +56,6 @@ class UserCreate(BaseModel):
     birthdate: date
     address: str
     phone_number: str
-    image: str
 
 
 class UserResponse(BaseModel):

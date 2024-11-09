@@ -1,6 +1,6 @@
 from fastapi import status, HTTPException
-from .. import models, schemas, utils
 from sqlalchemy.orm import Session
+from .. import models, schemas, utils
 
 
 
@@ -39,16 +39,19 @@ def get_admin_by_id(id: int,
 #     return user
 
 
-# def re_pwd(new_pwd: schemas.UserRePwd, 
-#            db: Session, 
-#            current_user):
+def re_pwd(new_pwd: schemas.UserRePwd, 
+           db: Session, 
+           current_user):
     
-#     user = db.query(models.User).filter(models.User.id == current_user.id)
+    user = db.query(models.UserAuth).filter(models.UserAuth.id == current_user.id).first()
 
-#     new_pwd.password = utils.hash(new_pwd.password)
+    if not user:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
 
-#     user.update(new_pwd.dict(), synchronize_session=False)
-#     db.commit()
+    new_pwd.password = utils.hash(new_pwd.password)
 
-#     return {"message": "Succes!"}
+    user.update(new_pwd.dict(), synchronize_session=False)
+    db.commit()
+
+    return {"message": "Succes!"}
 
