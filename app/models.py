@@ -14,19 +14,6 @@ class Role(Base):
     created_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=text('now()'))
 
 
-class UserInfo(Base):
-    __tablename__ = "user_infos"
-
-    id = Column(Integer, primary_key=True, nullable=False)
-    name = Column(String, nullable=False)
-    birthdate = Column(Date, nullable=False)
-    address = Column(String, nullable=False)
-    phone_number = Column(String, nullable=False)
-    created_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=text('now()'))
-
-    role_id = Column(Integer, ForeignKey("roles.id", ondelete="CASCADE"), nullable=False)
-
-
 class UserAuth(Base):
     __tablename__ = "user_auths"
 
@@ -35,7 +22,25 @@ class UserAuth(Base):
     password = Column(String, nullable=False)
     created_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=text('now()'))
 
-    user_id = Column(Integer, ForeignKey("user_infos.id", ondelete="CASCADE"), nullable=False)
+    user_info = relationship("UserInfo", back_populates="user_auth", uselist=False)
+
+
+class UserInfo(Base):
+    __tablename__ = "user_infos"
+
+    id = Column(Integer, primary_key=True, nullable=False)
+    name = Column(String, nullable=False)
+    birthdate = Column(Date, nullable=False)
+    address = Column(String, nullable=False)
+    phone_number = Column(String, nullable=False)
+    status = Column(Boolean, default=True)
+    created_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=text('now()'))
+
+    role_id = Column(Integer, ForeignKey("roles.id", ondelete="CASCADE"), nullable=False)
+    user_auth_id = Column(Integer, ForeignKey("user_auths.id", ondelete="CASCADE"), nullable=False)
+
+    role = relationship("Role", foreign_keys=[role_id])
+    user_auth = relationship("UserAuth", back_populates="user_info")
 
 
 class Author(Base):
@@ -71,8 +76,8 @@ class Publisher(Base):
     created_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=text('now()'))
 
 
-class Bookgroup(Base):
-    __tablename__ = "bookgroups"
+class Book(Base):
+    __tablename__ = "books"
 
     id = Column(Integer, primary_key=True, nullable=False)
     name = Column(String, nullable=False)
@@ -88,16 +93,6 @@ class Bookgroup(Base):
     publisher = relationship("Publisher", foreign_keys=[publisher_id])
     genre = relationship("Genre", foreign_keys=[genre_id])
     
-
-class Book(Base):
-    __tablename__ = "books"
-
-    id = Column(Integer, primary_key=True, nullable=False)
-    created_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=text('now()'))
-
-    bookgroup_id = Column(Integer, ForeignKey("bookgroups.id", ondelete="CASCADE"), nullable=False)
-
-    bookgroup = relationship("Bookgroup", foreign_keys=[bookgroup_id])
     
 
 class Borrow(Base):
@@ -108,11 +103,11 @@ class Borrow(Base):
     status = Column(String, nullable=False)
     created_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=text('now()'))
 
-    bookgroup_id = Column(Integer, ForeignKey("bookgroups.id", ondelete="CASCADE"), nullable=False)
+    book_id = Column(Integer, ForeignKey("books.id", ondelete="CASCADE"), nullable=False)
     user_id = Column(Integer, ForeignKey("user_infos.id", ondelete="CASCADE"), nullable=False)
-    staff_id = Column(Integer, ForeignKey("user_infos.id", ondelete="CASCADE"), nullable=False)
+    staff_id = Column(Integer, ForeignKey("user_infos.id", ondelete="CASCADE"), nullable=True)
 
-    bookgroup = relationship("Bookgroup", foreign_keys=[bookgroup_id])
+    book = relationship("Book", foreign_keys=[book_id])
     user = relationship("UserInfo", foreign_keys=[user_id])
     staff = relationship("UserInfo", foreign_keys=[staff_id])
 

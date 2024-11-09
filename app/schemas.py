@@ -4,6 +4,10 @@ from typing import Optional
 from datetime import datetime, date
 
 
+class DeleteMany(BaseModel):
+    list_id: list[int]
+
+
 # Token
 class Token(BaseModel):
     access_token: str
@@ -25,9 +29,23 @@ class RoleAssign(BaseModel):
     user_id: int
 
 
+class RoleResponse(BaseModel):
+    name: str
+
+    class Config:
+        from_attributes = True
+
+
 class RoleDelete(RoleCreate):
     pass
 
+
+
+class UserAuthResponse(BaseModel):
+    username: str
+
+    class Config:
+        from_attributes = True
 
 
 # User
@@ -38,7 +56,6 @@ class UserCreate(BaseModel):
     birthdate: date
     address: str
     phone_number: str
-    image: str
 
 
 class UserResponse(BaseModel):
@@ -47,8 +64,22 @@ class UserResponse(BaseModel):
     birthdate: date
     address: str
     phone_number: str
+    status: bool
     created_at: datetime
+
+    role: RoleResponse
+    user_auth: UserAuthResponse
     
+    class Config:
+        from_attributes = True
+
+
+class UserPageableResponse(BaseModel):
+    users: list[UserResponse]
+
+    total_pages: int
+    total_data: int
+
     class Config:
         from_attributes = True
 
@@ -58,14 +89,15 @@ class UserUpdate(BaseModel):
     birthdate: Optional[date] = None
     address: Optional[str] = None
     phone_number: Optional[str] = None
+    role: Optional[str] = None
 
 
 class UserRePwd(BaseModel):
-    new_pwd: str
+    username: str
 
 
-class DeleteMany(BaseModel):
-    list_id: list[int]
+class UserUpdatePwd(BaseModel):
+    password: str
 
 
 # Author
@@ -150,8 +182,8 @@ class PublisherResponse(BaseModel):
 
 
 
-# Bookgroup
-class BookgroupCreate(BaseModel):
+# Book
+class BookCreate(BaseModel):
     name: str
     status: str
     content: str
@@ -160,7 +192,7 @@ class BookgroupCreate(BaseModel):
     genre_id: int
 
 
-class BookgroupResponse(BaseModel):
+class BookResponse(BaseModel):
     id: int
     name: str
     status: str
@@ -175,8 +207,8 @@ class BookgroupResponse(BaseModel):
         from_attributes = True
 
 
-class BookgroupPageableResponse(BaseModel):
-    bookgroups: list[BookgroupResponse]
+class BookPageableResponse(BaseModel):
+    books: list[BookResponse]
 
     total_pages: int
     total_data: int
@@ -185,7 +217,7 @@ class BookgroupPageableResponse(BaseModel):
         from_attributes = True
 
 
-class BookgroupUpdate(BaseModel):
+class BookUpdate(BaseModel):
     name: Optional[str] = None
     status: Optional[str] = None
     content: Optional[str] = None
@@ -195,48 +227,34 @@ class BookgroupUpdate(BaseModel):
 
 
 
-# Book
-class BookCreate(BaseModel):
-    bookgroup_id: int
-
-
-class BookResponse(BaseModel):
-    id: int
-    
-    bookgroup: BookgroupResponse
-
-    class Config:
-        from_attributes = True
-
-
-class BookUpdate(BaseModel):
-    bookgroup_id: Optional[int] = None
-
-
-
 # Borrow
 class BorrowCreate(BaseModel):
-    bookgroup_id: int
+    book_id: int
     user_id: int
-    staff_id: int
+    staff_id: Optional[int] = None
     duration: int
 
 
 class BorrowUpdate(BaseModel):
-    bookgroup_id: Optional[int] = None
+    book_id: Optional[int] = None
     user_id: Optional[int] = None
     staff_id: Optional[int] = None
     duration: Optional[int] = None
     status: Optional[str] = None
 
 
+class BorrowReturnInfo(BaseModel):
+    book_id: int
+    user_id: int
+
+
 class BorrowResponse(BaseModel):
     id: int
     duration: int
     status: str
-    bookgroup: BookgroupResponse
+    book: BookResponse
     user: UserResponse
-    staff: UserResponse
+    staff: Optional[UserResponse]
     created_at: datetime
 
     class Config:

@@ -5,3 +5,7 @@ a.env
 
 /__pycache__
 /*/__pycache__/
+
+my_model.h5
+app/face_recognition/image
+app/face_recognition/User.csv
