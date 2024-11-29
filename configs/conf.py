@@ -17,6 +17,6 @@ class Settings(BaseSettings):
     host: str
 
     class Config:
-        env_file = "configs\.env"
+        env_file = ".env"
 
 settings = Settings()
