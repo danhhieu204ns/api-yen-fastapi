@@ -15,7 +15,7 @@ class UserInfo(Base):
     phone_number = Column(String, nullable=True)
     created_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=text('now()'))
 
-    user_account_id = Column(Integer, ForeignKey("user_accounts.id", ondelete="CASCADE", passive_deletes=True), nullable=False)
+    user_account_id = Column(Integer, ForeignKey("user_accounts.id", ondelete="CASCADE"), nullable=False)
 
     user_account = relationship("UserAccount", back_populates="user_info")
-    borrows = relationship("Borrow", back_populates="user", foreign_keys=[Borrow.user_id])
+    borrows = relationship("Borrow", back_populates="user", foreign_keys=[Borrow.user_id], passive_deletes=True)
