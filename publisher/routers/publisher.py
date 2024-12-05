@@ -18,8 +18,7 @@ router = APIRouter(
             response_model=list[PublisherResponse],
             status_code=status.HTTP_200_OK)
 async def get_publishers(
-        db: Session = Depends(get_db),
-        current_user = Depends(get_current_user)
+        db: Session = Depends(get_db)
     ):
 
     try:
@@ -40,8 +39,7 @@ async def get_publishers(
 async def get_publishers_pageable(
         page: int,
         page_size: int,
-        db: Session = Depends(get_db),
-        current_user = Depends(get_current_user)
+        db: Session = Depends(get_db)
     ):
 
     try:
@@ -70,8 +68,7 @@ async def get_publishers_pageable(
             status_code=status.HTTP_200_OK)
 async def search_publisher_by_id(
         id: int,
-        db: Session = Depends(get_db),
-        current_user = Depends(get_current_user)
+        db: Session = Depends(get_db)
     ):
 
     try:
@@ -94,8 +91,7 @@ async def search_publisher_by_id(
             status_code=status.HTTP_200_OK)
 async def search_publisher_by_name(
         name: str,
-        db: Session = Depends(get_db),
-        current_user = Depends(get_current_user)
+        db: Session = Depends(get_db)
     ):
 
     try:

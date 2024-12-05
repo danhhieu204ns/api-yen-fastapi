@@ -18,8 +18,7 @@ router = APIRouter(
             response_model=list[AuthorResponse],
             status_code=status.HTTP_200_OK)
 async def get_authors(
-        db: Session = Depends(get_db),
-        current_user = Depends(get_current_user)
+        db: Session = Depends(get_db)
     ):
 
     try:
@@ -40,8 +39,7 @@ async def get_authors(
 async def get_author_pageable(
         page: int,
         page_size: int,
-        db: Session = Depends(get_db),
-        current_user = Depends(get_current_user)
+        db: Session = Depends(get_db)
     ):
 
     try:
@@ -70,8 +68,7 @@ async def get_author_pageable(
             status_code=status.HTTP_200_OK)
 async def search_author_by_id(
         id: int,
-        db: Session = Depends(get_db),
-        current_user = Depends(get_current_user)
+        db: Session = Depends(get_db)
     ):
 
     try:
@@ -93,8 +90,7 @@ async def search_author_by_id(
             response_model=list[AuthorResponse])
 async def search_authors_by_name(
         name: str,
-        db: Session = Depends(get_db),
-        current_user = Depends(get_current_user)
+        db: Session = Depends(get_db)
     ):
 
     try:

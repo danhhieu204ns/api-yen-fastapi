@@ -18,8 +18,7 @@ router = APIRouter(
             response_model=list[BookResponse],
             status_code=status.HTTP_200_OK)
 async def get_books(
-        db: Session = Depends(get_db),
-        current_user = Depends(get_current_user)
+        db: Session = Depends(get_db)
     ):
 
     try:
@@ -40,8 +39,7 @@ async def get_books(
 async def get_genres_pageable(
         page: int,
         page_size: int,
-        db: Session = Depends(get_db),
-        current_user = Depends(get_current_user)
+        db: Session = Depends(get_db)
     ):
 
     try:
@@ -71,8 +69,7 @@ async def get_genres_pageable(
             status_code=status.HTTP_200_OK)
 async def search_book_by_id(
         id: int,
-        db: Session = Depends(get_db),
-        current_user = Depends(get_current_user)
+        db: Session = Depends(get_db)
     ):
 
     try:
@@ -95,8 +92,7 @@ async def search_book_by_id(
             status_code=status.HTTP_200_OK)
 async def search_books_by_name(
         name: str,
-        db: Session = Depends(get_db),
-        current_user = Depends(get_current_user)
+        db: Session = Depends(get_db)
     ):
 
     try:
