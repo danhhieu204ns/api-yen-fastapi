@@ -12,6 +12,8 @@ from author.routers import author
 from category.routers import category
 from publisher.routers import publisher
 from book.routers import book
+from book_copy.routers import book_copy
+from bookshelf.routers import bookshelf
 from borrow.routers import borrow
 
 
@@ -46,6 +48,8 @@ app.router.include_router(author.router)
 app.router.include_router(category.router)
 app.router.include_router(publisher.router)
 app.router.include_router(book.router)
+app.router.include_router(book_copy.router)
+app.router.include_router(bookshelf.router)
 app.router.include_router(borrow.router)
 
 
