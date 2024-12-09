@@ -64,7 +64,7 @@ async def get_book_copy_pageable(
         )
 
 
-@router.get("/search/by-id/{id}",
+@router.get("/{id}",
             response_model=BookCopyResponse,
             status_code=status.HTTP_200_OK)
 async def search_book_copy_by_id(
@@ -75,8 +75,10 @@ async def search_book_copy_by_id(
     try:
         book_copy = db.query(BookCopy).filter(BookCopy.id == id).first()
         if not book_copy:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
-                                detail="Bản sao sách không tồn tại")
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Bản sao sách không tồn tại"
+            )
         
         return book_copy
     
@@ -149,7 +151,7 @@ async def import_book_copies(
         )
 
 
-@router.put("/{id}/update",
+@router.put("/update/{id}",
             response_model=BookCopyResponse,
             status_code=status.HTTP_200_OK)
 async def update_book_copy(
@@ -162,8 +164,10 @@ async def update_book_copy(
     try:
         book_copy_db = db.query(BookCopy).filter(BookCopy.id == id)
         if not book_copy_db.first():
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
-                                detail="Bản sao sách không tồn tại")
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Bản sao sách không tồn tại"
+            )
 
         book_copy_db.update(book_copy.dict(), 
                             synchronize_session=False)
@@ -186,7 +190,7 @@ async def update_book_copy(
         )
 
 
-@router.delete("/{id}/delete",
+@router.delete("/delete/{id}",
             status_code=status.HTTP_200_OK)
 async def delete_book_copy(
         id: int,
@@ -197,8 +201,10 @@ async def delete_book_copy(
     try:
         book_copy = db.query(BookCopy).filter(BookCopy.id == id)
         if not book_copy.first():
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
-                                detail="Bản sao sách không tồn tại")
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Bản sao sách không tồn tại"
+            )
 
         book_copy.delete(synchronize_session=False)
         db.commit()
@@ -231,13 +237,43 @@ async def delete_book_copies(
     try:
         book_copies = db.query(BookCopy).filter(BookCopy.id.in_(ids))
         if not book_copies.first():
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
-                                detail="Danh sách bản sao sách không tồn tại")
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Bản sao sách không tồn tại"
+            )
 
         book_copies.delete(synchronize_session=False)
         db.commit()
 
         return {"message": "Xóa danh sách bản sao sách thành công"}
+    
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Dữ liệu không hợp lệ hoặc vi phạm ràng buộc cơ sở dữ liệu"
+        )
+    
+    except SQLAlchemyError as e:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Lỗi cơ sở dữ liệu: {str(e)}"
+        )
+
+
+@router.delete("/delete-all",
+            status_code=status.HTTP_200_OK)
+async def delete_all_book_copies(
+        db: Session = Depends(get_db),
+        current_user = Depends(get_current_user)
+    ):
+
+    try:
+        db.query(BookCopy).delete()
+        db.commit()
+
+        return {"message": "Xóa tất cả bản sao sách thành công"}
     
     except IntegrityError:
         db.rollback()
