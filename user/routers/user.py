@@ -143,14 +143,14 @@ async def create_user(
             birthdate=new_user.birthdate,
             address=new_user.address
         )
-        db.add(new_auth)
+        db.add(new_info)
         db.flush()
 
         new_auth = AuthCredential(
             user_id=new_info.id,
-            password=hash_password(new_user.password),
+            hashed_password=hash_password(new_user.password),
         )        
-        db.add(new_info)
+        db.add(new_auth)
         db.commit()
         db.refresh(new_info)
 

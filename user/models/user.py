@@ -21,3 +21,5 @@ class User(Base):
 
     auth_credential = relationship("AuthCredential", back_populates="user", uselist=False, passive_deletes=True)
     user_roles = relationship("UserRole", back_populates="user", passive_deletes=True)
+    borrows = relationship("Borrow", back_populates="user", foreign_keys="Borrow.user_id")
+    staff_borrows = relationship("Borrow", back_populates="staff", foreign_keys="Borrow.staff_id")
