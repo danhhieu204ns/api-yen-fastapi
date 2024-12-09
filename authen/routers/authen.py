@@ -22,20 +22,18 @@ async def login_user(
 
     if not user:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
+            status_code=status.HTTP_406_NOT_ACCEPTABLE,
             detail="Invalid Credentials!"
         )
-    if not verify_password(user_credentials.password, user.auth_credential.password):
+    if not verify_password(user_credentials.password, user.auth_credential.hashed_password):
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
+            status_code=status.HTTP_406_NOT_ACCEPTABLE,
             detail="Invalid Credentials!"
         )
     
     access_token, expire = create_access_token(data={"user_id": user.id})
-    roles = db.query(UserRole).filter(UserRole.user_account_id == user_account.id).first()
 
     return {"access_token": access_token,
             "token_type": "bearer", 
             "user": user, 
-            "role": roles, 
             "expire": expire}
