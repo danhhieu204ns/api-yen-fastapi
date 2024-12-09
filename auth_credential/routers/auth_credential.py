@@ -9,7 +9,7 @@ from auth_credential.schemas.auth_credential import AuthCredentialResponse, Auth
 import math
 
 
-RESET_PASSWORD = settings.reset_password
+DEFAULT_PASSWORD = settings.default_password
 
 
 router = APIRouter(
@@ -113,7 +113,7 @@ async def reset_user_password(
             )
 
         auth_credential.update(
-            {"password": hash_password(RESET_PASSWORD)}, 
+            {"password": hash_password(DEFAULT_PASSWORD)}, 
             synchronize_session=False
         )
         db.commit()    
