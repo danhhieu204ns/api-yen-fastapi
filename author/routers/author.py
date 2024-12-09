@@ -63,7 +63,7 @@ async def get_author_pageable(
         )
 
 
-@router.get("/search/by-id/{id}",
+@router.get("/{id}",
             response_model=AuthorResponse,
             status_code=status.HTTP_200_OK)
 async def search_author_by_id(
@@ -74,8 +74,10 @@ async def search_author_by_id(
     try:
         author = db.query(Author).filter(Author.id == id).first()
         if not author:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
-                                detail=f"Tác giả không tồn tại")
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Tác giả không tồn tại"
+            )
         
         return author
     
@@ -96,8 +98,10 @@ async def search_authors_by_name(
     try:
         authors = db.query(Author).filter(Author.name.ilike(f"%{name}%")).all()
         if not authors:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
-                                detail=f"Tác giả không tồn tại")
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Tác giả không tồn tại"
+            )
 
         return authors
     
@@ -120,8 +124,10 @@ async def create_author(
     try:
         author = db.query(Author).filter(Author.name == new_author.name).first()
         if author:
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
-                                detail="Tác giả đã tồn tại")
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Tác giả đã tồn tại"
+            )
 
         author = Author(**new_author.dict())
         db.add(author)
@@ -133,7 +139,7 @@ async def create_author(
         db.rollback()
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Tác giả đã tồn tại"
+            detail="Dữ liệu không hợp lệ hoặc vi phạm ràng buộc cơ sở dữ liệu"
         )
     
     except SQLAlchemyError as e:
@@ -164,7 +170,7 @@ async def import_authors(
         db.rollback()
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Tác giả đã tồn tại"
+            detail="Dữ liệu không hợp lệ hoặc vi phạm ràng buộc cơ sở dữ liệu"
         )
     
     except SQLAlchemyError as e:
@@ -175,7 +181,7 @@ async def import_authors(
         )
 
 
-@router.put("/{id}/update",
+@router.put("/update/{id}",
             response_model=AuthorResponse,
             status_code=status.HTTP_200_OK)
 async def update_author(
@@ -188,8 +194,10 @@ async def update_author(
     try:
         author = db.query(Author).filter(Author.id == id)
         if not author.first():
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
-                                detail="Tác giả không tồn tại")
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Tác giả không tồn tại"
+            )
         
         author.update(new_author.dict(), 
                     synchronize_session=False)
@@ -201,7 +209,7 @@ async def update_author(
         db.rollback()
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Tác giả đã tồn tại"
+            detail="Dữ liệu không hợp lệ hoặc vi phạm ràng buộc cơ sở dữ liệu"
         )
     
     except SQLAlchemyError as e:
@@ -212,7 +220,7 @@ async def update_author(
         )
 
 
-@router.delete("/{id}/delete",
+@router.delete("/delete/{id}",
                 status_code=status.HTTP_200_OK)
 async def delete_author(
         id: int,
@@ -223,8 +231,10 @@ async def delete_author(
     try:
         author = db.query(Author).filter(Author.id == id)
         if not author.first():
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
-                                detail="Tác giả không tồn tại")
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Tác giả không tồn tại"
+            )
 
         author.delete(synchronize_session=False)
         db.commit()
@@ -235,7 +245,7 @@ async def delete_author(
         db.rollback()
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Tác giả đã tồn tại"
+            detail="Dữ liệu không hợp lệ hoặc vi phạm ràng buộc cơ sở dữ liệu"
         )
     
     except SQLAlchemyError as e:
@@ -257,8 +267,10 @@ async def delete_authors(
     try:
         authors = db.query(Author).filter(Author.id.in_(ids))
         if not authors.first():
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, 
-                                detail="Tác giả không tồn tại")
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Tác giả không tồn tại"
+            )
 
         authors.delete(synchronize_session=False)
         db.commit()
@@ -269,7 +281,35 @@ async def delete_authors(
         db.rollback()
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Tác giả đã tồn tại"
+            detail="Dữ liệu không hợp lệ hoặc vi phạm ràng buộc cơ sở dữ liệu"
+        )
+    
+    except SQLAlchemyError as e:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Lỗi cơ sở dữ liệu: {str(e)}"
+        )
+
+
+@router.delete("/delete-all",
+                status_code=status.HTTP_200_OK)
+async def delete_all_authors(
+        db: Session = Depends(get_db),
+        current_user = Depends(get_current_user)
+    ):
+
+    try:
+        db.query(Author).delete()
+        db.commit()
+
+        return {"message": "Xóa tất cả tác giả thành công"}
+    
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Dữ liệu không hợp lệ hoặc vi phạm ràng buộc cơ sở dữ liệu"
         )
     
     except SQLAlchemyError as e:
