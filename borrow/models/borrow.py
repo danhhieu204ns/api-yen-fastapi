@@ -13,9 +13,9 @@ class Borrow(Base):
     created_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=text('now()'))
 
     book_copy_id = Column(Integer, ForeignKey("book_copies.id", ondelete="CASCADE"), nullable=False)
-    user_id = Column(Integer, ForeignKey("user_infos.id", ondelete="CASCADE"), nullable=False)
-    staff_id = Column(Integer, ForeignKey("user_infos.id", ondelete="CASCADE"), nullable=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    staff_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=True)
 
     book_copy = relationship("BookCopy", back_populates="borrows")
-    user = relationship("UserInfo", back_populates="borrows", foreign_keys=[user_id])
-    staff = relationship("UserInfo", back_populates="borrows", foreign_keys=[staff_id])
+    user = relationship("User", back_populates="borrows", foreign_keys=[user_id])
+    staff = relationship("User", back_populates="borrows", foreign_keys=[staff_id])
