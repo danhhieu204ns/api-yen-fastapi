@@ -63,7 +63,7 @@ async def get_categories_pageable(
         )
     
 
-@router.get("/search/by-id/{id}",
+@router.get("/{id}",
             response_model=CategoryResponse,
             status_code=status.HTTP_200_OK)
 async def search_category_by_id(
@@ -74,8 +74,10 @@ async def search_category_by_id(
     try:
         category = db.query(Category).filter(Category.id == id).first()
         if not category:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
-                                detail="Thể loại không tồn tại")
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Thể loại không tồn tại"
+            )
 
         return category
     
@@ -97,8 +99,10 @@ async def search_category_by_name(
     try:
         category = db.query(Category).filter(Category.name.ilike(f"%{name}%")).first()
         if not category:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
-                                detail="Thể loại không tồn tại")
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Thể loại không tồn tại"
+            )
 
         return category
     
@@ -121,8 +125,10 @@ async def create_category(
     try:
         category = db.query(Category).filter(Category.name == new_category.name).first()
         if category:
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
-                                detail="Thể loại đã tồn tại")
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Thể loại đã tồn tại"
+            )
 
         category = Category(**new_category.dict())
         db.add(category)
@@ -159,8 +165,10 @@ async def import_categories(
         for category in categories:
             category_db = db.query(Category).filter(Category.name == category.name).first()
             if category_db:
-                raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
-                                    detail="Thể loại đã tồn tại")
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Thể loại đã tồn tại"
+                )
 
             category_db = Category(**category.dict())
             db.add(category_db)
@@ -198,8 +206,10 @@ async def update_category(
     try:
         category_db = db.query(Category).filter(Category.id == id)
         if not category_db.first():
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
-                                detail="Thể loại không tồn tại")
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Thể loại không tồn tại"
+            )
 
         category_db.update(category.dict(), 
                         synchronize_session=False)
@@ -233,8 +243,10 @@ async def delete_category(
     try:
         category = db.query(Category).filter(Category.id == id)
         if not category.first():
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
-                                detail="Thể loại không tồn tại")
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Thể loại không tồn tại"
+            )
 
         category.delete(synchronize_session=False)
         db.commit()
@@ -267,8 +279,10 @@ async def delete_categories(
     try:
         categories = db.query(Category).filter(Category.id.in_(ids))
         if not categories.first():
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
-                                detail="Thể loại không tồn tại")
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Thể loại không tồn tại"
+            )
 
         categories.delete(synchronize_session=False)
         db.commit()
@@ -283,6 +297,27 @@ async def delete_categories(
         )
     
     except SQLAlchemyError as e:    
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Lỗi cơ sở dữ liệu: {str(e)}"
+        )
+
+
+@router.delete("/delete-all",
+            status_code=status.HTTP_200_OK)
+async def delete_all_categories(
+        db: Session = Depends(get_db),
+        current_user = Depends(get_current_user)
+    ):
+
+    try:
+        db.query(Category).delete()
+        db.commit()
+
+        return {"message": "Xóa tất cả thể loại thành công"}
+    
+    except SQLAlchemyError as e:
         db.rollback()
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
