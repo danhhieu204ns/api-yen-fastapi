@@ -18,4 +18,4 @@ class Borrow(Base):
 
     book_copy = relationship("BookCopy", back_populates="borrows")
     user = relationship("User", back_populates="borrows", foreign_keys=[user_id])
-    staff = relationship("User", back_populates="borrows", foreign_keys=[staff_id])
+    staff = relationship("User", back_populates="staff_borrows", foreign_keys=[staff_id])
