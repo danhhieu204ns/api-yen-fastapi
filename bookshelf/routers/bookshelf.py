@@ -64,7 +64,7 @@ async def get_bookshelf_pageable(
         )
 
 
-@router.get("/search/by-id/{id}",
+@router.get("/{id}",
             response_model=BookshelfResponse,
             status_code=status.HTTP_200_OK)
 async def search_bookshelf_by_id(
@@ -75,8 +75,10 @@ async def search_bookshelf_by_id(
     try:
         bookshelf = db.query(Bookshelf).filter(Bookshelf.id == id).first()
         if not bookshelf:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
-                                detail="Tủ sách không tồn tại")
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Tủ sách không tồn tại"
+            )
         
         return bookshelf
     
@@ -98,8 +100,10 @@ async def search_bookshelfs_by_name(
     try:
         bookshelfs = db.query(Bookshelf).filter(Bookshelf.name.ilike(f"%{name}%")).all()
         if not bookshelfs:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
-                                detail="Tủ sách không tồn tại")
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Tủ sách không tồn tại"
+            )
         
         return bookshelfs
     
@@ -122,8 +126,10 @@ async def create_bookshelf(
     try:
         bookshelf = db.query(Bookshelf).filter(Bookshelf.name == new_bookshelf.name).first()
         if bookshelf:
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
-                                detail="Tủ sách đã tồn tại")
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Tủ sách đã tồn tại"
+            )
 
         bookshelf = Bookshelf(**new_bookshelf.dict())
         db.add(bookshelf)
@@ -177,7 +183,7 @@ async def import_bookshelfs(
         )
 
 
-@router.put("/{id}/update",
+@router.put("/update/{id}",
             response_model=BookshelfResponse,
             status_code=status.HTTP_200_OK)
 async def update_bookshelf(
@@ -190,8 +196,10 @@ async def update_bookshelf(
     try:
         bookshelf_db = db.query(Bookshelf).filter(Bookshelf.id == id)
         if not bookshelf_db.first():
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
-                                detail="Sách không tồn tại")
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Tủ sách không tồn tại"
+            )
 
         bookshelf_db.update(bookshelf.dict(), 
                             synchronize_session=False)
@@ -214,7 +222,7 @@ async def update_bookshelf(
         )
 
 
-@router.delete("/{id}/delete",
+@router.delete("/delete/{id}",
             status_code=status.HTTP_200_OK)
 async def delete_bookshelf(
         id: int,
@@ -225,8 +233,10 @@ async def delete_bookshelf(
     try:
         bookshelf = db.query(Bookshelf).filter(Bookshelf.id == id)
         if not bookshelf.first():
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
-                                detail="Tủ sách không tồn tại")
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Tủ sách không tồn tại"
+            )
 
         bookshelf.delete(synchronize_session=False)
         db.commit()
@@ -259,8 +269,10 @@ async def delete_bookshelfs(
     try:
         bookshelfs = db.query(Bookshelf).filter(Bookshelf.id.in_(ids))
         if not bookshelfs.first():
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
-                                detail="Tủ sách không tồn tại")
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Tủ sách không tồn tại"
+            )
 
         bookshelfs.delete(synchronize_session=False)
         db.commit()
@@ -273,6 +285,27 @@ async def delete_bookshelfs(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Dữ liệu không hợp lệ hoặc vi phạm ràng buộc cơ sở dữ liệu"
         )
+    
+    except SQLAlchemyError as e:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Lỗi cơ sở dữ liệu: {str(e)}"
+        )
+
+
+@router.delete("/delete-all",
+            status_code=status.HTTP_200_OK)
+async def delete_all_bookshelfs(
+        db: Session = Depends(get_db),
+        current_user = Depends(get_current_user)
+    ):
+
+    try:
+        db.query(Bookshelf).delete()
+        db.commit()
+
+        return {"message": "Xóa tất cả tủ sách thành công"}
     
     except SQLAlchemyError as e:
         db.rollback()
