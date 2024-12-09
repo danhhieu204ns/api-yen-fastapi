@@ -37,7 +37,7 @@ async def get_roles(
 @router.get("/pageable",
             response_model=RolePageableResponse, 
             status_code=status.HTTP_200_OK)
-async def get_user_pageable(
+async def get_roles_pageable(
         page: int, 
         page_size: int, 
         db: Session = Depends(get_db), 

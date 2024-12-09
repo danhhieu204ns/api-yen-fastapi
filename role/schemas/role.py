@@ -39,3 +39,4 @@ class RoleImport(BaseModel):
 
     class Config:
         from_attributes = True
+        

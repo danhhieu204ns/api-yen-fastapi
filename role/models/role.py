@@ -13,4 +13,5 @@ class Role(Base):
 
     created_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=text('now()'))
 
-    user_account = relationship("UserRole", back_populates="role")
+    user_roles = relationship("UserRole", back_populates="role", passive_deletes=True)
+    role_permissions = relationship("RolePermission", back_populates="role", passive_deletes=True)
