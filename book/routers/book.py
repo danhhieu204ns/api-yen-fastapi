@@ -64,7 +64,7 @@ async def get_genres_pageable(
         )
 
 
-@router.get("/search/by-id/{id}",
+@router.get("/{id}",
             response_model=BookResponse,
             status_code=status.HTTP_200_OK)
 async def search_book_by_id(
@@ -75,8 +75,10 @@ async def search_book_by_id(
     try:
         book = db.query(Book).filter(Book.id == id).first()
         if not book:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
-                                detail="Sách không tồn tại")
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Sách không tồn tại"
+            )
         
         return book
     
@@ -98,8 +100,10 @@ async def search_books_by_name(
     try:
         books = db.query(Book).filter(Book.name.ilike(f"%{name}%")).all()
         if not books:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
-                                detail="Sách không tồn tại")
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Sách không tồn tại"
+            )
         
         return books
     
@@ -122,8 +126,10 @@ async def create_book(
     try:
         book = db.query(Book).filter(Book.name == new_book.name).first()
         if book:
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
-                                detail="Sách đã tồn tại")
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Sách đã tồn tại"
+            )
 
         book = Book(**new_book.dict())
         db.add(book)
@@ -177,7 +183,7 @@ async def import_books(
         )
 
 
-@router.put("/{id}/update",
+@router.put("/update/{id}",
             response_model=BookResponse,
             status_code=status.HTTP_200_OK)
 async def update_book(
@@ -190,11 +196,12 @@ async def update_book(
     try:
         book_db = db.query(Book).filter(Book.id == id)
         if not book_db.first():
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
-                                detail="Sách không tồn tại")
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Sách không tồn tại"
+            )
 
-        book_db.update(book.dict(), 
-                    synchronize_session=False)
+        book_db.update(book.dict(), synchronize_session=False)
         db.commit()
 
         return book_db.first()
@@ -214,7 +221,7 @@ async def update_book(
         )
 
 
-@router.delete("/{id}/delete",
+@router.delete("/delete/{id}",
             status_code=status.HTTP_200_OK)
 async def delete_book(
         id: int,
@@ -225,8 +232,10 @@ async def delete_book(
     try:
         book = db.query(Book).filter(Book.id == id)
         if not book.first():
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
-                                detail="Sách không tồn tại")
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Sách không tồn tại"
+            )
 
         book.delete(synchronize_session=False)
         db.commit()
@@ -259,8 +268,10 @@ async def delete_books(
     try:
         books = db.query(Book).filter(Book.id.in_(ids))
         if not books.first():
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
-                                detail="Sách không tồn tại")
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Sách không tồn tại"
+            )
 
         books.delete(synchronize_session=False)
         db.commit()
@@ -280,3 +291,32 @@ async def delete_books(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Lỗi cơ sở dữ liệu: {str(e)}"
         )
+
+
+@router.delete("/delete-all",
+            status_code=status.HTTP_200_OK)
+async def delete_all_books(
+        db: Session = Depends(get_db),
+        current_user = Depends(get_current_user)
+    ):
+
+    try:
+        db.query(Book).delete()
+        db.commit()
+
+        return {"message": "Xóa tất cả sách thành công"}
+    
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Dữ liệu không hợp lệ hoặc vi phạm ràng buộc cơ sở dữ liệu"
+        )
+    
+    except SQLAlchemyError as e:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Lỗi cơ sở dữ liệu: {str(e)}"
+        )
+    
