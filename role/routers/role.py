@@ -37,7 +37,7 @@ async def get_roles(
 @router.get("/pageable",
             response_model=RolePageableResponse, 
             status_code=status.HTTP_200_OK)
-async def get_user_pageable(
+async def get_roles_pageable(
         page: int, 
         page_size: int, 
         db: Session = Depends(get_db), 
@@ -65,7 +65,7 @@ async def get_user_pageable(
         )
 
 
-@router.get("/search/by-id/{id}", 
+@router.get("/{id}", 
             response_model=RoleResponse, 
             status_code=status.HTTP_200_OK)
 async def search_role_by_id(
@@ -279,3 +279,25 @@ async def delete_roles(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Lỗi cơ sở dữ liệu: {str(e)}"
         )
+
+
+@router.delete("/delete-all",
+            status_code=status.HTTP_200_OK)
+async def delete_all_roles(
+        db: Session = Depends(get_db), 
+        current_user = Depends(get_current_user)
+    ):
+
+    try:
+        db.query(Role).delete()
+        db.commit()
+
+        return {"message": "Xóa tất cả quyền thành công"}
+    
+    except SQLAlchemyError as e:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Lỗi cơ sở dữ liệu: {str(e)}"
+        )
+    

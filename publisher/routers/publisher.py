@@ -18,8 +18,7 @@ router = APIRouter(
             response_model=list[PublisherResponse],
             status_code=status.HTTP_200_OK)
 async def get_publishers(
-        db: Session = Depends(get_db),
-        current_user = Depends(get_current_user)
+        db: Session = Depends(get_db)
     ):
 
     try:
@@ -40,8 +39,7 @@ async def get_publishers(
 async def get_publishers_pageable(
         page: int,
         page_size: int,
-        db: Session = Depends(get_db),
-        current_user = Depends(get_current_user)
+        db: Session = Depends(get_db)
     ):
 
     try:
@@ -65,20 +63,21 @@ async def get_publishers_pageable(
         )
 
 
-@router.get("/search/by-id/{id}",
+@router.get("/{id}",
             response_model=PublisherResponse,
             status_code=status.HTTP_200_OK)
 async def search_publisher_by_id(
         id: int,
-        db: Session = Depends(get_db),
-        current_user = Depends(get_current_user)
+        db: Session = Depends(get_db)
     ):
 
     try:
         publisher = db.query(Publisher).filter(Publisher.id == id).first()
         if not publisher:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
-                                detail="Nhà xuất bản không tồn tại")
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Nhà xuất bản không tồn tại"
+            )
 
         return publisher
     
@@ -94,15 +93,16 @@ async def search_publisher_by_id(
             status_code=status.HTTP_200_OK)
 async def search_publisher_by_name(
         name: str,
-        db: Session = Depends(get_db),
-        current_user = Depends(get_current_user)
+        db: Session = Depends(get_db)
     ):
 
     try:
         publishers = db.query(Publisher).filter(Publisher.name.like(f"%{name}%")).all()
         if not publishers:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
-                                detail="Nhà xuất bản không tồn tại")
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Nhà xuất bản không tồn tại"
+            )
 
         return publishers
     
@@ -125,8 +125,10 @@ async def create_publisher(
     try:
         publisher = db.query(Publisher).filter(Publisher.name == new_publisher.name).first()
         if publisher:
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
-                                detail="Nhà xuất bản đã tồn tại")
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Nhà xuất bản đã tồn tại"
+            )
 
         publisher = Publisher(**new_publisher.dict())
         db.add(publisher)
@@ -180,7 +182,7 @@ async def import_publishers(
         )
 
 
-@router.put("/{id}/update",
+@router.put("/update/{id}",
             response_model=PublisherResponse,
             status_code=status.HTTP_200_OK)
 async def update_publisher(
@@ -193,11 +195,12 @@ async def update_publisher(
     try:
         publisher = db.query(Publisher).filter(Publisher.id == id)
         if not publisher.first():
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
-                                detail="Nhà xuất bản không tồn tại")
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Nhà xuất bản không tồn tại"
+            )
 
-        publisher.update(new_publisher.dict(), 
-                        synchronize_session=False)
+        publisher.update(new_publisher.dict(), synchronize_session=False)
         db.commit()
 
         return publisher.first()
@@ -217,7 +220,7 @@ async def update_publisher(
         )
 
 
-@router.delete("/{id}/delete",
+@router.delete("/delete/{id}",
             status_code=status.HTTP_200_OK)
 async def delete_publisher(
         id: int,
@@ -228,8 +231,10 @@ async def delete_publisher(
     try:
         publisher = db.query(Publisher).filter(Publisher.id == id)
         if not publisher.first():
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
-                                detail="Nhà xuất bản không tồn tại")
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Nhà xuất bản không tồn tại"
+            )
 
         publisher.delete(synchronize_session=False)
         db.commit()
@@ -262,8 +267,10 @@ async def delete_publishers(
     try:
         publishers = db.query(Publisher).filter(Publisher.id.in_(publishers.ids))
         if not publishers.first():
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
-                                detail="Nhà xuất bản không tồn tại")
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Nhà xuất bản không tồn tại"
+            )
 
         publishers.delete(synchronize_session=False)
         db.commit()
@@ -283,3 +290,25 @@ async def delete_publishers(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Lỗi cơ sở dữ liệu: {str(e)}"
         )
+
+
+@router.delete("/delete-all",
+            status_code=status.HTTP_200_OK)
+async def delete_all_publishers(
+        db: Session = Depends(get_db),
+        current_user = Depends(get_current_user)
+    ):
+
+    try:
+        db.query(Publisher).delete()
+        db.commit()
+
+        return {"message": "Xóa tất cả nhà xuất bản thành công"}
+    
+    except SQLAlchemyError as e:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Lỗi cơ sở dữ liệu: {str(e)}"
+        )
+    

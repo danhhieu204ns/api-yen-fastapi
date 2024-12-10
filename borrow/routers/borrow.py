@@ -24,6 +24,7 @@ async def get_borrows(
 
     try:
         borrows = db.query(Borrow).all()
+
         return borrows
 
     except SQLAlchemyError as e:
@@ -65,7 +66,7 @@ async def get_borrows_pageable(
         )
 
 
-@router.get("/search/by-id/{id}",
+@router.get("/{id}",
             response_model=BorrowResponse,
             status_code=status.HTTP_200_OK)
 async def search_borrow_by_id(
@@ -78,8 +79,10 @@ async def search_borrow_by_id(
         borrow = db.query(Borrow).filter(Borrow.id == id).first()
 
         if not borrow:
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
-                                detail="Phiếu mượn không tồn tại")
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Phiếu mượn không tồn tại"
+            )
         
         return borrow
     
@@ -152,7 +155,7 @@ async def import_borrows(
         )
 
 
-@router.put("/{id}/update",
+@router.put("/update/{id}",
             response_model=BorrowResponse,
             status_code=status.HTTP_200_OK)
 async def update_borrow(
@@ -168,7 +171,7 @@ async def update_borrow(
 
         if not borrow:
             raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
+                status_code=status.HTTP_404_NOT_FOUND,
                 detail="Phiếu mượn không tồn tại"
             )
         
@@ -192,7 +195,7 @@ async def update_borrow(
         )
 
 
-@router.delete("/{id}/delete",
+@router.delete("/delete/{id}",
             status_code=status.HTTP_200_OK)
 async def delete_borrow(
         id: int,
@@ -203,8 +206,10 @@ async def delete_borrow(
     try:
         borrow = db.query(Borrow).filter(Borrow.id == id)
         if not borrow.first():
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, 
-                                detail="Phiếu mượn không tồn tại")
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Phiếu mượn không tồn tại"
+            )
         
         borrow.delete(synchronize_session=False)
         db.commit()
@@ -237,8 +242,10 @@ async def delete_borrows(
     try:
         borrows = db.query(Borrow).filter(Borrow.id.in_(ids))
         if not borrows.first():
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
-                                detail="Danh sách phiếu mượn không tồn tại")
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Phiếu mượn không tồn tại"
+            )
         
         borrows.delete(synchronize_session=False)
         db.commit()
@@ -252,6 +259,27 @@ async def delete_borrows(
             detail="Dữ liệu không hợp lệ hoặc vi phạm ràng buộc cơ sở dữ liệu"
         )
 
+    except SQLAlchemyError as e:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Lỗi cơ sở dữ liệu: {str(e)}"
+        )
+
+
+@router.delete("/delete-all",
+            status_code=status.HTTP_200_OK)
+async def delete_all_borrows(
+        db: Session = Depends(get_db),
+        current_user = Depends(get_current_user)
+    ):
+
+    try:
+        db.query(Borrow).delete()
+        db.commit()
+
+        return {"message": "Xóa tất cả phiếu mượn thành công"}
+    
     except SQLAlchemyError as e:
         db.rollback()
         raise HTTPException(

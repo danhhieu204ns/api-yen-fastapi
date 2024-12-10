@@ -3,20 +3,20 @@ from pydantic import BaseModel
 from typing import Optional
 
 
-class RoleBase(BaseModel):
+class PermissionBase(BaseModel):
     name: str
     detail: str
     
 
-class RoleCreate(RoleBase):
+class PermissionCreate(PermissionBase):
     pass
 
 
-class RoleUpdate(BaseModel):
+class PermissionUpdate(PermissionBase):
     detail: str
 
 
-class RoleResponse(RoleBase):
+class PermissionResponse(PermissionBase):
     id: int
     created_at: datetime
 
@@ -24,19 +24,11 @@ class RoleResponse(RoleBase):
         from_attributes = True
 
 
-class RolePageableResponse(BaseModel):
-    roles: list[RoleResponse]
+class PermissionPageableResponse(BaseModel):
+    permissions: list[PermissionBase]
 
     total_pages: int
     total_data: int
 
     class Config:
         from_attributes = True
-
-
-class RoleImport(BaseModel):
-    roles: list[RoleCreate]
-
-    class Config:
-        from_attributes = True
-        

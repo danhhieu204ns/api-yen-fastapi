@@ -5,7 +5,7 @@ from typing import Optional
 
 class BorrowBase(BaseModel):
     user_id: int
-    book_id: int
+    book_copy_id: int
     staff_id: Optional[int]
     duration: Optional[int]
     status: Optional[str]

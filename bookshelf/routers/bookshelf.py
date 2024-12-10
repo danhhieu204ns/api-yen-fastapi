@@ -3,29 +3,29 @@ from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from configs.authentication import get_current_user
 from configs.database import get_db
-from author.models.author import Author
-from author.schemas.author import AuthorResponse, AuthorCreate, AuthorUpdate, AuthorPageableResponse
+from bookshelf.models.bookshelf import Bookshelf
+from bookshelf.schemas.bookshelf import BookshelfCreate, BookshelfUpdate, BookshelfResponse, BookshelfPageableResponse, BookshelfImport
 import math
 
 
 router = APIRouter(
-    prefix="/author",
-    tags=["Author"],
+    prefix="/bookshelf",
+    tags=["Bookshelf"],
 )
 
 
 @router.get("/all",
-            response_model=list[AuthorResponse],
+            response_model=list[BookshelfResponse],
             status_code=status.HTTP_200_OK)
-async def get_authors(
+async def get_bookshelfs(
         db: Session = Depends(get_db)
     ):
 
     try:
-        authors = db.query(Author).all()
+        bookshelfs = db.query(Bookshelf).all()
 
-        return authors
-    
+        return bookshelfs
+
     except SQLAlchemyError as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -34,27 +34,28 @@ async def get_authors(
 
 
 @router.get("/pageable",
-            response_model=AuthorPageableResponse,
+            response_model=BookshelfPageableResponse,
             status_code=status.HTTP_200_OK)
-async def get_author_pageable(
+async def get_bookshelf_pageable(
         page: int,
         page_size: int,
         db: Session = Depends(get_db)
     ):
 
     try:
-        total_count = db.query(Author).count()
+        total_count = db.query(Bookshelf).count()
         total_pages = math.ceil(total_count / page_size)
         offset = (page - 1) * page_size
-        authors = db.query(Author).offset(offset).limit(page_size).all()
 
-        authors_pageable_res = AuthorPageableResponse(
-            authors=authors,
+        bookshelfs = db.query(Bookshelf).offset(offset).limit(page_size).all()
+
+        bookshelfs_pageable = BookshelfPageableResponse(
+            total_count=total_count,
             total_pages=total_pages,
-            total_data=total_count
+            bookshelfs=bookshelfs
         )
 
-        return authors_pageable_res
+        return bookshelfs_pageable
     
     except SQLAlchemyError as e:
         raise HTTPException(
@@ -64,22 +65,22 @@ async def get_author_pageable(
 
 
 @router.get("/{id}",
-            response_model=AuthorResponse,
+            response_model=BookshelfResponse,
             status_code=status.HTTP_200_OK)
-async def search_author_by_id(
+async def search_bookshelf_by_id(
         id: int,
         db: Session = Depends(get_db)
     ):
 
     try:
-        author = db.query(Author).filter(Author.id == id).first()
-        if not author:
+        bookshelf = db.query(Bookshelf).filter(Bookshelf.id == id).first()
+        if not bookshelf:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Tác giả không tồn tại"
+                detail="Tủ sách không tồn tại"
             )
         
-        return author
+        return bookshelf
     
     except SQLAlchemyError as e:
         raise HTTPException(
@@ -89,21 +90,22 @@ async def search_author_by_id(
 
 
 @router.get("/search/by-name/{name}",
-            response_model=list[AuthorResponse])
-async def search_authors_by_name(
+            response_model=list[BookshelfResponse], 
+            status_code=status.HTTP_200_OK)
+async def search_bookshelfs_by_name(
         name: str,
         db: Session = Depends(get_db)
     ):
 
     try:
-        authors = db.query(Author).filter(Author.name.ilike(f"%{name}%")).all()
-        if not authors:
+        bookshelfs = db.query(Bookshelf).filter(Bookshelf.name.ilike(f"%{name}%")).all()
+        if not bookshelfs:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Tác giả không tồn tại"
+                detail="Tủ sách không tồn tại"
             )
-
-        return authors
+        
+        return bookshelfs
     
     except SQLAlchemyError as e:
         raise HTTPException(
@@ -113,27 +115,27 @@ async def search_authors_by_name(
 
 
 @router.post("/create",
-                response_model=AuthorResponse,
-                status_code=status.HTTP_201_CREATED)
-async def create_author(
-        new_author: AuthorCreate,
+            response_model=BookshelfResponse,
+            status_code=status.HTTP_201_CREATED)
+async def create_bookshelf(
+        new_bookshelf: BookshelfCreate,
         db: Session = Depends(get_db),
         current_user = Depends(get_current_user)
     ):
 
     try:
-        author = db.query(Author).filter(Author.name == new_author.name).first()
-        if author:
+        bookshelf = db.query(Bookshelf).filter(Bookshelf.name == new_bookshelf.name).first()
+        if bookshelf:
             raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Tác giả đã tồn tại"
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Tủ sách đã tồn tại"
             )
 
-        author = Author(**new_author.dict())
-        db.add(author)
+        bookshelf = Bookshelf(**new_bookshelf.dict())
+        db.add(bookshelf)
         db.commit()
 
-        return author
+        return bookshelf
     
     except IntegrityError:
         db.rollback()
@@ -151,20 +153,20 @@ async def create_author(
 
 
 @router.post("/import",
-            response_model=list[AuthorResponse],
+            response_model=list[BookshelfResponse],
             status_code=status.HTTP_201_CREATED)
-async def import_authors(
-        authors: list[AuthorCreate],
+async def import_bookshelfs(
+        bookshelfs: BookshelfImport,
         db: Session = Depends(get_db),
         current_user = Depends(get_current_user)
     ):
 
     try:
-        authors = [Author(**author.dict()) for author in authors]
-        db.add_all(authors)
+        bookshelfs_db = [Bookshelf(**book.dict()) for book in bookshelfs.bookshelfs]
+        db.add_all(bookshelfs_db)
         db.commit()
 
-        return authors
+        return bookshelfs_db
     
     except IntegrityError:
         db.rollback()
@@ -182,28 +184,28 @@ async def import_authors(
 
 
 @router.put("/update/{id}",
-            response_model=AuthorResponse,
+            response_model=BookshelfResponse,
             status_code=status.HTTP_200_OK)
-async def update_author(
+async def update_bookshelf(
         id: int,
-        new_author: AuthorUpdate,
+        bookshelf: BookshelfUpdate,
         db: Session = Depends(get_db),
         current_user = Depends(get_current_user)
     ):
 
     try:
-        author = db.query(Author).filter(Author.id == id)
-        if not author.first():
+        bookshelf_db = db.query(Bookshelf).filter(Bookshelf.id == id)
+        if not bookshelf_db.first():
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Tác giả không tồn tại"
+                detail="Tủ sách không tồn tại"
             )
-        
-        author.update(new_author.dict(), 
-                    synchronize_session=False)
+
+        bookshelf_db.update(bookshelf.dict(), 
+                            synchronize_session=False)
         db.commit()
 
-        return author.first()
+        return bookshelf_db.first()
     
     except IntegrityError:
         db.rollback()
@@ -221,25 +223,25 @@ async def update_author(
 
 
 @router.delete("/delete/{id}",
-                status_code=status.HTTP_200_OK)
-async def delete_author(
+            status_code=status.HTTP_200_OK)
+async def delete_bookshelf(
         id: int,
         db: Session = Depends(get_db),
         current_user = Depends(get_current_user)
     ):
 
     try:
-        author = db.query(Author).filter(Author.id == id)
-        if not author.first():
+        bookshelf = db.query(Bookshelf).filter(Bookshelf.id == id)
+        if not bookshelf.first():
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Tác giả không tồn tại"
+                detail="Tủ sách không tồn tại"
             )
 
-        author.delete(synchronize_session=False)
+        bookshelf.delete(synchronize_session=False)
         db.commit()
 
-        return {"message": "Xóa tác giả thành công"}
+        return {"message": "Xóa tủ sách thành công"}
     
     except IntegrityError:
         db.rollback()
@@ -257,25 +259,25 @@ async def delete_author(
 
 
 @router.delete("/delete-many",
-                status_code=status.HTTP_200_OK)
-async def delete_authors(
+            status_code=status.HTTP_200_OK)
+async def delete_bookshelfs(
         ids: list[int],
         db: Session = Depends(get_db),
         current_user = Depends(get_current_user)
     ):
 
     try:
-        authors = db.query(Author).filter(Author.id.in_(ids))
-        if not authors.first():
+        bookshelfs = db.query(Bookshelf).filter(Bookshelf.id.in_(ids))
+        if not bookshelfs.first():
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Tác giả không tồn tại"
+                detail="Tủ sách không tồn tại"
             )
 
-        authors.delete(synchronize_session=False)
+        bookshelfs.delete(synchronize_session=False)
         db.commit()
 
-        return {"message": "Xóa danh sách tác giả thành công"}
+        return {"message": "Xóa danh sách tủ sách thành công"}
     
     except IntegrityError:
         db.rollback()
@@ -293,24 +295,17 @@ async def delete_authors(
 
 
 @router.delete("/delete-all",
-                status_code=status.HTTP_200_OK)
-async def delete_all_authors(
+            status_code=status.HTTP_200_OK)
+async def delete_all_bookshelfs(
         db: Session = Depends(get_db),
         current_user = Depends(get_current_user)
     ):
 
     try:
-        db.query(Author).delete()
+        db.query(Bookshelf).delete()
         db.commit()
 
-        return {"message": "Xóa tất cả tác giả thành công"}
-    
-    except IntegrityError:
-        db.rollback()
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Dữ liệu không hợp lệ hoặc vi phạm ràng buộc cơ sở dữ liệu"
-        )
+        return {"message": "Xóa tất cả tủ sách thành công"}
     
     except SQLAlchemyError as e:
         db.rollback()

@@ -12,7 +12,7 @@ class Settings(BaseSettings):
     algorithm: str
     access_token_expire_minutes: int
 
-    reset_password: str
+    default_password: str
     port: int
     host: str
 

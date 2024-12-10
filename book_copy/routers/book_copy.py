@@ -3,29 +3,29 @@ from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from configs.authentication import get_current_user
 from configs.database import get_db
-from author.models.author import Author
-from author.schemas.author import AuthorResponse, AuthorCreate, AuthorUpdate, AuthorPageableResponse
+from book_copy.models.book_copy import BookCopy
+from book_copy.schemas.book_copy import BookCopyCreate, BookCopyUpdate, BookCopyResponse, BookCopyPageableResponse, BookCopyImport
 import math
 
 
 router = APIRouter(
-    prefix="/author",
-    tags=["Author"],
+    prefix="/book-copies",
+    tags=["Book_Copies"],
 )
 
 
 @router.get("/all",
-            response_model=list[AuthorResponse],
+            response_model=list[BookCopyResponse],
             status_code=status.HTTP_200_OK)
-async def get_authors(
+async def get_book_copies(
         db: Session = Depends(get_db)
     ):
 
     try:
-        authors = db.query(Author).all()
+        book_copies = db.query(BookCopy).all()
 
-        return authors
-    
+        return book_copies
+
     except SQLAlchemyError as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -34,27 +34,28 @@ async def get_authors(
 
 
 @router.get("/pageable",
-            response_model=AuthorPageableResponse,
+            response_model=BookCopyPageableResponse,
             status_code=status.HTTP_200_OK)
-async def get_author_pageable(
+async def get_book_copy_pageable(
         page: int,
         page_size: int,
         db: Session = Depends(get_db)
     ):
 
     try:
-        total_count = db.query(Author).count()
+        total_count = db.query(BookCopy).count()
         total_pages = math.ceil(total_count / page_size)
         offset = (page - 1) * page_size
-        authors = db.query(Author).offset(offset).limit(page_size).all()
 
-        authors_pageable_res = AuthorPageableResponse(
-            authors=authors,
+        book_copies = db.query(BookCopy).offset(offset).limit(page_size).all()
+
+        book_copies_pageable = BookCopyPageableResponse(
+            total_count=total_count,
             total_pages=total_pages,
-            total_data=total_count
+            book_copies=book_copies
         )
 
-        return authors_pageable_res
+        return book_copies_pageable
     
     except SQLAlchemyError as e:
         raise HTTPException(
@@ -64,46 +65,22 @@ async def get_author_pageable(
 
 
 @router.get("/{id}",
-            response_model=AuthorResponse,
+            response_model=BookCopyResponse,
             status_code=status.HTTP_200_OK)
-async def search_author_by_id(
+async def search_book_copy_by_id(
         id: int,
         db: Session = Depends(get_db)
     ):
 
     try:
-        author = db.query(Author).filter(Author.id == id).first()
-        if not author:
+        book_copy = db.query(BookCopy).filter(BookCopy.id == id).first()
+        if not book_copy:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Tác giả không tồn tại"
+                detail="Bản sao sách không tồn tại"
             )
         
-        return author
-    
-    except SQLAlchemyError as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Lỗi cơ sở dữ liệu: {str(e)}"
-        )
-
-
-@router.get("/search/by-name/{name}",
-            response_model=list[AuthorResponse])
-async def search_authors_by_name(
-        name: str,
-        db: Session = Depends(get_db)
-    ):
-
-    try:
-        authors = db.query(Author).filter(Author.name.ilike(f"%{name}%")).all()
-        if not authors:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Tác giả không tồn tại"
-            )
-
-        return authors
+        return book_copy
     
     except SQLAlchemyError as e:
         raise HTTPException(
@@ -113,27 +90,20 @@ async def search_authors_by_name(
 
 
 @router.post("/create",
-                response_model=AuthorResponse,
-                status_code=status.HTTP_201_CREATED)
-async def create_author(
-        new_author: AuthorCreate,
+            response_model=BookCopyResponse,
+            status_code=status.HTTP_201_CREATED)
+async def create_book_copy(
+        new_book_copy: BookCopyCreate,
         db: Session = Depends(get_db),
         current_user = Depends(get_current_user)
     ):
 
     try:
-        author = db.query(Author).filter(Author.name == new_author.name).first()
-        if author:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Tác giả đã tồn tại"
-            )
-
-        author = Author(**new_author.dict())
-        db.add(author)
+        book_copy = BookCopy(**new_book_copy.dict())
+        db.add(book_copy)
         db.commit()
 
-        return author
+        return book_copy
     
     except IntegrityError:
         db.rollback()
@@ -151,20 +121,20 @@ async def create_author(
 
 
 @router.post("/import",
-            response_model=list[AuthorResponse],
+            response_model=list[BookCopyResponse],
             status_code=status.HTTP_201_CREATED)
-async def import_authors(
-        authors: list[AuthorCreate],
+async def import_book_copies(
+        book_copies: BookCopyImport,
         db: Session = Depends(get_db),
         current_user = Depends(get_current_user)
     ):
 
     try:
-        authors = [Author(**author.dict()) for author in authors]
-        db.add_all(authors)
+        book_copies_db = [BookCopy(**book_copy.dict()) for book_copy in book_copies.book_copies]
+        db.add_all(book_copies_db)
         db.commit()
 
-        return authors
+        return book_copies_db
     
     except IntegrityError:
         db.rollback()
@@ -182,28 +152,28 @@ async def import_authors(
 
 
 @router.put("/update/{id}",
-            response_model=AuthorResponse,
+            response_model=BookCopyResponse,
             status_code=status.HTTP_200_OK)
-async def update_author(
+async def update_book_copy(
         id: int,
-        new_author: AuthorUpdate,
+        book_copy: BookCopyUpdate,
         db: Session = Depends(get_db),
         current_user = Depends(get_current_user)
     ):
 
     try:
-        author = db.query(Author).filter(Author.id == id)
-        if not author.first():
+        book_copy_db = db.query(BookCopy).filter(BookCopy.id == id)
+        if not book_copy_db.first():
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Tác giả không tồn tại"
+                detail="Bản sao sách không tồn tại"
             )
-        
-        author.update(new_author.dict(), 
-                    synchronize_session=False)
+
+        book_copy_db.update(book_copy.dict(), 
+                            synchronize_session=False)
         db.commit()
 
-        return author.first()
+        return book_copy_db.first()
     
     except IntegrityError:
         db.rollback()
@@ -221,25 +191,25 @@ async def update_author(
 
 
 @router.delete("/delete/{id}",
-                status_code=status.HTTP_200_OK)
-async def delete_author(
+            status_code=status.HTTP_200_OK)
+async def delete_book_copy(
         id: int,
         db: Session = Depends(get_db),
         current_user = Depends(get_current_user)
     ):
 
     try:
-        author = db.query(Author).filter(Author.id == id)
-        if not author.first():
+        book_copy = db.query(BookCopy).filter(BookCopy.id == id)
+        if not book_copy.first():
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Tác giả không tồn tại"
+                detail="Bản sao sách không tồn tại"
             )
 
-        author.delete(synchronize_session=False)
+        book_copy.delete(synchronize_session=False)
         db.commit()
 
-        return {"message": "Xóa tác giả thành công"}
+        return {"message": "Xóa bản sao sách thành công"}
     
     except IntegrityError:
         db.rollback()
@@ -257,25 +227,25 @@ async def delete_author(
 
 
 @router.delete("/delete-many",
-                status_code=status.HTTP_200_OK)
-async def delete_authors(
+            status_code=status.HTTP_200_OK)
+async def delete_book_copies(
         ids: list[int],
         db: Session = Depends(get_db),
         current_user = Depends(get_current_user)
     ):
 
     try:
-        authors = db.query(Author).filter(Author.id.in_(ids))
-        if not authors.first():
+        book_copies = db.query(BookCopy).filter(BookCopy.id.in_(ids))
+        if not book_copies.first():
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Tác giả không tồn tại"
+                detail="Bản sao sách không tồn tại"
             )
 
-        authors.delete(synchronize_session=False)
+        book_copies.delete(synchronize_session=False)
         db.commit()
 
-        return {"message": "Xóa danh sách tác giả thành công"}
+        return {"message": "Xóa danh sách bản sao sách thành công"}
     
     except IntegrityError:
         db.rollback()
@@ -293,17 +263,17 @@ async def delete_authors(
 
 
 @router.delete("/delete-all",
-                status_code=status.HTTP_200_OK)
-async def delete_all_authors(
+            status_code=status.HTTP_200_OK)
+async def delete_all_book_copies(
         db: Session = Depends(get_db),
         current_user = Depends(get_current_user)
     ):
 
     try:
-        db.query(Author).delete()
+        db.query(BookCopy).delete()
         db.commit()
 
-        return {"message": "Xóa tất cả tác giả thành công"}
+        return {"message": "Xóa tất cả bản sao sách thành công"}
     
     except IntegrityError:
         db.rollback()
