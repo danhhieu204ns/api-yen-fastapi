@@ -13,4 +13,4 @@ class Bookshelf(Base):
 
     created_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=text('now()'))
 
-    book_copies = relationship("BookCopy", back_populates="bookshelf")
+    book_copies = relationship("BookCopy", back_populates="bookshelf", uselist=True)

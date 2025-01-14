@@ -24,4 +24,4 @@ class Book(Base):
     publisher = relationship("Publisher", back_populates="books")
     category = relationship("Category", back_populates="books")
 
-    book_copies = relationship("BookCopy", back_populates="book")
+    book_copies = relationship("BookCopy", back_populates="book", uselist=True)

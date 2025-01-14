@@ -15,4 +15,4 @@ class Author(Base):
     biography = Column(String, nullable=True)
     created_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=text('now()'))
 
-    books = relationship("Book", back_populates="author")
+    books = relationship("Book", back_populates="author", uselist=True)
