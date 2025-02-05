@@ -3,6 +3,7 @@ from typing import Optional
 from datetime import datetime, date
 from auth_credential.schemas.auth_credential import AuthCredentialResponse
 from role.schemas.role import RoleResponse
+from permission.schemas.permission import PermissionResponse
 
 
 class UserBase(BaseModel):
@@ -27,8 +28,22 @@ class UserResponse(UserBase):
     is_active: bool
     created_at: datetime
 
+    role: RoleResponse
     auth_credential: AuthCredentialResponse
     
+    class Config:
+        from_attributes = True
+
+
+class UserLoginResponse(UserBase):
+    id: int
+    is_active: bool
+    created_at: datetime
+
+    auth_credential: AuthCredentialResponse
+    
+    permissions: list[str]
+
     class Config:
         from_attributes = True
 

@@ -13,4 +13,4 @@ class Category(Base): # the loai
     description = Column(String, nullable=True)
     created_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=text('now()'))
 
-    books = relationship("Book", back_populates="category")
+    books = relationship("Book", back_populates="category", uselist=True)

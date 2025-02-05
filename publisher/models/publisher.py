@@ -14,5 +14,5 @@ class Publisher(Base):
     phone_number = Column(String, nullable=True)
     created_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=text('now()'))
 
-    books = relationship("Book", back_populates="publisher")
+    books = relationship("Book", back_populates="publisher", uselist=True)
     

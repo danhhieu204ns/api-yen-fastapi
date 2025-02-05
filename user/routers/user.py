@@ -1,4 +1,5 @@
 from fastapi import status, APIRouter, Depends, HTTPException, status
+from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import SQLAlchemyError, IntegrityError
 from configs.database import get_db
@@ -119,7 +120,6 @@ async def get_user_by_name(
     
 
 @router.post("/register", 
-             response_model=UserResponse,
              status_code=status.HTTP_201_CREATED)
 async def create_user(
         new_user: UserCreate,
@@ -154,7 +154,12 @@ async def create_user(
         db.commit()
         db.refresh(new_info)
 
-        return new_info
+        return JSONResponse(
+            status_code=status.HTTP_201_CREATED, 
+            content={
+                "message": "Tạo tài khoản thành công"
+            }
+        )
     
     except IntegrityError:
         db.rollback()
