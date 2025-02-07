@@ -57,6 +57,6 @@ app.router.include_router(book_copy.router)
 app.router.include_router(borrow.router)
 
 
-# if __name__ == "__main__":
-#     uvicorn.run(app, host=settings.host, port=settings.port)
+if __name__ == "__main__":
+    uvicorn.run(app, host=settings.host, port=settings.port)
     
