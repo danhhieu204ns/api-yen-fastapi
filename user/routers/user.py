@@ -1,13 +1,16 @@
 from fastapi import status, APIRouter, Depends, HTTPException, status
 from fastapi.responses import JSONResponse
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import SQLAlchemyError, IntegrityError
 from configs.database import get_db
 from configs.authentication import get_current_user, hash_password, validate_pwd
+from role.models.role import Role
 from user.models.user import User
-from user.schemas.user import UserCreate, UserUpdate, UserResponse, UserPageableResponse
+from user.schemas.user import ListUserResponse, UserCreate, UserSearch, UserUpdate, UserResponse, UserPageableResponse
 from auth_credential.models.auth_credential import AuthCredential
 import math
+from user_role.models.user_role import UserRole
 
 
 router = APIRouter(
@@ -16,8 +19,8 @@ router = APIRouter(
 )
     
 
-@router.get("/all", 
-            response_model=list[UserResponse], 
+@router.get("/all",
+            response_model=ListUserResponse,
             status_code=status.HTTP_200_OK)
 async def get_all_users(
         db: Session = Depends(get_db), 
@@ -25,9 +28,33 @@ async def get_all_users(
     ):
     
     try:
-        users = db.query(User).all()
+        query = (
+            db.query(
+                User,
+                func.coalesce(func.array_agg(Role.name).filter(Role.name != None), '{}').label("roles")
+            )
+            .outerjoin(UserRole, User.id == UserRole.user_id)
+            .outerjoin(Role, UserRole.role_id == Role.id)
+            .group_by(User.id)
+        )
+        users = query.all()
         
-        return users
+        users = [
+            UserResponse(
+                id=user[0].id,
+                full_name=user[0].full_name,
+                email=user[0].email,
+                phone_number=user[0].phone_number,
+                birthdate=user[0].birthdate,
+                address=user[0].address,
+                is_active=user[0].is_active,
+                created_at=user[0].created_at,
+                roles=user[1]
+            )
+            for user in users
+        ]
+
+        return ListUserResponse(users=users)
     
     except SQLAlchemyError as e:
         raise HTTPException(
@@ -50,7 +77,32 @@ async def get_user_pageable(
         total_count = db.query(User).count()
         total_pages = math.ceil(total_count / page_size)
         offset = (page - 1) * page_size
-        users = db.query(User).offset(offset).limit(page_size).all()
+        
+        query = (
+            db.query(
+                User,
+                func.coalesce(func.array_agg(Role.name).filter(Role.name != None), '{}').label("roles")
+            )
+            .outerjoin(UserRole, User.id == UserRole.user_id)
+            .outerjoin(Role, UserRole.role_id == Role.id)
+            .group_by(User.id)
+        )
+        users = query.all()
+        
+        users = [
+            UserResponse(
+                id=user[0].id,
+                full_name=user[0].full_name,
+                email=user[0].email,
+                phone_number=user[0].phone_number,
+                birthdate=user[0].birthdate,
+                address=user[0].address,
+                is_active=user[0].is_active,
+                created_at=user[0].created_at,
+                roles=user[1]
+            )
+            for user in users
+        ]
 
         user_pageable_res = UserPageableResponse(
             users=users,
@@ -77,7 +129,17 @@ async def get_user_by_id(
     ):
     
     try:
-        user = db.query(User).filter(User.id == user_id).first()
+        query = (
+            db.query(
+                User,
+                func.coalesce(func.array_agg(Role.name).filter(Role.name != None), '{}').label("roles")
+            )
+            .outerjoin(UserRole, User.id == UserRole.user_id)
+            .outerjoin(Role, UserRole.role_id == Role.id)
+            .group_by(User.id)
+            .filter(User.id == user_id)
+        )
+        user = query.first()
 
         if not user:
             raise HTTPException(
@@ -85,6 +147,18 @@ async def get_user_by_id(
                 detail=f"Người dùng không tồn tại"
             )
         
+        user = UserResponse(
+            id=user[0].id,
+            full_name=user[0].full_name,
+            email=user[0].email,
+            phone_number=user[0].phone_number,
+            birthdate=user[0].birthdate,
+            address=user[0].address,
+            is_active=user[0].is_active,
+            created_at=user[0].created_at,
+            roles=user[1]
+        )
+
         return user
     
     except SQLAlchemyError as e:
@@ -94,22 +168,32 @@ async def get_user_by_id(
         )
 
 
-@router.get("/search/by-name/{name}",
+@router.post("/search",
             status_code=status.HTTP_200_OK,  
             response_model=list[UserResponse])
-async def get_user_by_name(
-        name: str, 
+async def search_user(
+        search: UserSearch, 
         db: Session = Depends(get_db), 
         current_user = Depends(get_current_user)
     ):
     
     try:
-        users = db.query(User).filter(User.full_name.ilike(f"%{name}%")).all()
+        users = db.query(User)
+        if search.full_name:
+            users = users.filter(User.full_name.ilike(f"%{search.full_name}%"))
+        if search.email:
+            users = users.filter(User.email == search.email)
+        if search.phone_number:
+            users = users.filter(User.phone_number == search.phone_number)
+        if search.birthdate:
+            users = users.filter(User.birthdate == search.birthdate)
+        if search.address:
+            users = users.filter(User.address.ilike(f"%{search.address}%"))
+        if search.is_active:
+            users = users.filter(User.is_active == search.is_active)
 
-        if not users:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, 
-                                detail=f"Người dùng không tồn tại")
-        
+        users = users.all()
+
         return users
     
     except SQLAlchemyError as e:
@@ -133,6 +217,7 @@ async def create_user(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Tên đăng nhập đã tồn tại"
             )
+        
         validate_pwd(new_user.password)
 
         new_info = User(
@@ -151,6 +236,15 @@ async def create_user(
             hashed_password=hash_password(new_user.password),
         )        
         db.add(new_auth)
+
+        register_role = db.query(Role).filter(Role.name == "user").first()
+
+        new_user_role = UserRole(
+            user_id=new_info.id,
+            role_id=register_role.id
+        )
+        db.add(new_user_role)
+
         db.commit()
         db.refresh(new_info)
 
@@ -205,7 +299,12 @@ async def import_user(
         
         db.commit()
         
-        return {"message": "Nhập dữ liệu thành công"}
+        return JSONResponse(
+            status_code=status.HTTP_201_CREATED, 
+            content={
+                "message": "Nhập dữ liệu thành công"
+            }
+        )
     
     except IntegrityError:
         db.rollback()
@@ -244,7 +343,12 @@ async def active_user(
         )
         db.commit()
 
-        return {"message": "Kích hoạt tài khoản thành công"}
+        return JSONResponse(
+            status_code=status.HTTP_200_OK, 
+            content={
+                "message": "Kích hoạt tài khoản thành công"
+            }
+        )
     
     except IntegrityError as e:
         raise HTTPException(
@@ -281,7 +385,12 @@ async def deactive_user(
         )
         db.commit()
 
-        return {"message": "Vô hiệu hóa tài khoản thành công"}
+        return JSONResponse(
+            status_code=status.HTTP_200_OK, 
+            content={
+                "message": "Vô hiệu hóa tài khoản thành công"
+            }
+        )
     
     except IntegrityError as e:
         raise HTTPException(
@@ -314,10 +423,18 @@ async def update_user(
                 detail=f"Người dùng không tồn tại"
             )
 
-        user.update(newUser.dict(), synchronize_session=False)
+        user.update(
+            newUser.dict(), 
+            synchronize_session=False
+        )
         db.commit()
 
-        return user.first()
+        return JSONResponse(
+            status_code=status.HTTP_200_OK, 
+            content={
+                "message": "Cập nhật người dùng thành công"
+            }
+        )
     
     except IntegrityError:
         db.rollback()
@@ -347,13 +464,18 @@ async def delete_user(
         if not user.first():
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND, 
-                detail=f"Người dùng có không tồn tại"
+                detail=f"Người dùng không tồn tại"
             )
 
         user.delete(synchronize_session=False)
         db.commit()
 
-        return {"message": "Xóa người dùng thành công"}
+        return JSONResponse(
+            status_code=status.HTTP_200_OK, 
+            content={
+                "message": "Xóa người dùng thành công"
+            }
+        )
     
     except IntegrityError:
         db.rollback()
@@ -389,7 +511,12 @@ async def delete_many_user(
         users.delete(synchronize_session=False)
         db.commit()
 
-        return {"message": "Xóa người dùng thành công"}
+        return JSONResponse(
+            status_code=status.HTTP_200_OK, 
+            content={
+                "message": "Xóa người dùng thành công"
+            }
+        )
     
     except IntegrityError:
         db.rollback()
@@ -417,7 +544,12 @@ async def delete_all_user(
         db.query(User).delete()
         db.commit()
 
-        return {"message": "Xóa tất cả người dùng thành công"}
+        return JSONResponse(
+            status_code=status.HTTP_200_OK, 
+            content={
+                "message": "Xóa tất cả người dùng thành công"
+            }
+        )
     
     except IntegrityError:
         db.rollback()
