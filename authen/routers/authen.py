@@ -38,22 +38,13 @@ async def login_user(
     access_token, expire = create_access_token(data={"user_id": user.id})
 
     roles = db.query(UserRole.role_id).filter(UserRole.user_id == user.id).all()
-    role_ids = [role[0] for role in roles]
-
-    permissions = db.query(Permission.name).join(RolePermission, Permission.id == RolePermission.permission_id)\
-                    .filter(RolePermission.role_id.in_(role_ids)).all()
 
     user_res = UserLoginResponse(
         id=user.id,
         full_name=user.full_name,
-        email=user.email,
-        phone_number=user.phone_number,
-        birthdate=user.birthdate,
-        address=user.address,
         is_active=user.is_active,
         created_at=user.created_at,
-
-        permissions=permissions,
+        roles=roles,
         auth_credential=user.auth_credential
     )
 

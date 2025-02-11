@@ -35,14 +35,12 @@ class UserResponse(UserBase):
         from_attributes = True
 
 
-class UserLoginResponse(UserBase):
+class UserLoginResponse(BaseModel):
     id: int
+    full_name: str
     is_active: bool
     created_at: datetime
-
-    auth_credential: AuthCredentialResponse
-    
-    permissions: list[str]
+    roles: list[str]
 
     class Config:
         from_attributes = True
