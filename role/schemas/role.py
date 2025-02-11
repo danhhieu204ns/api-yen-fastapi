@@ -24,6 +24,14 @@ class RoleResponse(RoleBase):
         from_attributes = True
 
 
+class ListRoleResponse(BaseModel):
+    roles: list[RoleResponse]
+    total_data: int
+
+    class Config:
+        from_attributes = True
+
+
 class RolePageableResponse(BaseModel):
     roles: list[RoleResponse]
 
@@ -39,4 +47,7 @@ class RoleImport(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+
         
