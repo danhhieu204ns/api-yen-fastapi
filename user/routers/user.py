@@ -7,7 +7,7 @@ from configs.database import get_db
 from configs.authentication import get_current_user, hash_password, validate_pwd
 from role.models.role import Role
 from user.models.user import User
-from user.schemas.user import ListUserResponse, UserCreate, UserSearch, UserUpdate, UserResponse, UserPageableResponse
+from user.schemas.user import *
 from auth_credential.models.auth_credential import AuthCredential
 import math
 from user_role.models.user_role import UserRole
@@ -43,6 +43,7 @@ async def get_all_users(
             UserResponse(
                 id=user[0].id,
                 full_name=user[0].full_name,
+                username=user[0].username,
                 email=user[0].email,
                 phone_number=user[0].phone_number,
                 birthdate=user[0].birthdate,
@@ -54,7 +55,10 @@ async def get_all_users(
             for user in users
         ]
 
-        return ListUserResponse(users=users)
+        return ListUserResponse(
+            users=users, 
+            tolal_data=len(users)
+        )
     
     except SQLAlchemyError as e:
         raise HTTPException(
