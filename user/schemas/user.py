@@ -23,26 +23,35 @@ class UserUpdate(UserBase):
     full_name: Optional[str] = None
 
 
-class UserResponse(UserBase):
+class UserResponse(BaseModel):
     id: int
+    full_name: str
+    email: Optional[str] = None
+    phone_number: Optional[str] = None
+    birthdate: Optional[date] = None
+    address: Optional[str] = None
     is_active: bool
     created_at: datetime
 
-    role: RoleResponse
-    auth_credential: AuthCredentialResponse
+    roles: list[str]
     
     class Config:
         from_attributes = True
 
 
-class UserLoginResponse(UserBase):
+class ListUserResponse(BaseModel):
+    users: list[UserResponse]
+
+    class Config:
+        from_attributes = True
+
+
+class UserLoginResponse(BaseModel):
     id: int
+    full_name: str
     is_active: bool
     created_at: datetime
-
-    auth_credential: AuthCredentialResponse
-    
-    permissions: list[str]
+    roles: list[str]
 
     class Config:
         from_attributes = True
@@ -53,6 +62,18 @@ class UserPageableResponse(BaseModel):
 
     total_pages: int
     total_data: int
+
+    class Config:
+        from_attributes = True
+
+
+class UserSearch(BaseModel):
+    full_name: Optional[str] = None
+    email: Optional[str] = None
+    phone_number: Optional[str] = None
+    birthdate: Optional[date] = None
+    address: Optional[str] = None
+    is_active: Optional[bool] = None
 
     class Config:
         from_attributes = True

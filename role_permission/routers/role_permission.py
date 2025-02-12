@@ -1,11 +1,14 @@
 import math
 from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from configs.authentication import get_current_user
 from configs.database import get_db
+from permission.models.permission import Permission
+from role.models.role import Role
 from role_permission.models.role_permission import RolePermission
-from role_permission.schemas.role_permission import RolePermissionCreate, RolePermissionResponse, RolePermissionUpdate, RolePermissionPageableResponse
+from role_permission.schemas.role_permission import *
 
 
 router = APIRouter(
@@ -15,7 +18,7 @@ router = APIRouter(
 
 
 @router.get("/all", 
-            response_model=list[RolePermissionResponse], 
+            response_model=ListRolePermissionResponse, 
             status_code=status.HTTP_200_OK)
 async def get_role_permissions(
         db: Session = Depends(get_db),
@@ -25,7 +28,10 @@ async def get_role_permissions(
     try:
         role_permissions = db.query(RolePermission).all()
 
-        return role_permissions
+        return ListRolePermissionResponse(
+            role_permissions=role_permissions,
+            tolal_data=len(role_permissions)
+        )
     
     except SQLAlchemyError as e:
         raise HTTPException(
@@ -50,13 +56,11 @@ async def get_role_permission_pageable(
         offset = (page - 1) * page_size
         role_permissions = db.query(RolePermission).offset(offset).limit(page_size).all()
 
-        role_permissions_pageable_res = RolePermissionPageableResponse(
+        return RolePermissionPageableResponse(
             role_permissions=role_permissions,
             total_pages=total_pages,
             total_data=total_count
         )
-
-        return role_permissions_pageable_res
     
     except SQLAlchemyError as e:
         raise HTTPException(
@@ -79,7 +83,7 @@ async def search_role_permission_by_id(
         if not role_permission:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND, 
-                detail=f"Quyền không tồn tại"
+                detail=f"Vai trò - quyền không tồn tại"
             )
 
         return role_permission
@@ -91,23 +95,26 @@ async def search_role_permission_by_id(
         )
 
 
-@router.get("/search/by-name/{name}",
-            response_model=list[RolePermissionResponse],)
+@router.post("/search",
+            response_model=ListRolePermissionResponse)
 async def search_role_permissions_by_name(
-        name: str,
+        info: RolePermissionSearch,
         db: Session = Depends(get_db), 
         current_user = Depends(get_current_user)
     ):
 
     try:
-        role_permissions = db.query(RolePermission).filter(RolePermission.name.like(f"%{name}%")).all()
-        if not role_permissions:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND, 
-                detail=f"Quyền không tồn tại"
-            )
+        role_permissions = db.query(RolePermission)
+        if info.role_id:
+            role_permissions = role_permissions.filter(RolePermission.role_id == info.role_id)
+        if info.permission_id:
+            role_permissions = role_permissions.filter(RolePermission.permission_id == info.permission_id)
+        role_permissions = role_permissions.all()
 
-        return role_permissions
+        return ListRolePermissionResponse(
+            role_permissions=role_permissions,
+            tolal_data=len(role_permissions)
+        )
     
     except SQLAlchemyError as e:
         raise HTTPException(
@@ -126,18 +133,39 @@ async def create_role_permission(
     ):
 
     try:
-        role_permission = db.query(RolePermission).filter(RolePermission.name == new_role_permission.name).first()
+        permission = db.query(Permission).filter(Permission.id == new_role_permission.permission_id).first()
+        if not permission:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, 
+                detail="Quyền không tồn tại"
+            )
+        
+        role = db.query(Role).filter(Role.id == new_role_permission.role_id).first()
+        if not role:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, 
+                detail="Vai trò không tồn tại"
+            )
+        
+        role_permission = db.query(RolePermission).filter(
+            RolePermission.role_id == new_role_permission.role_id,
+            RolePermission.permission_id == new_role_permission.permission_id
+        ).first()
+
         if role_permission:
             raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST, 
-                detail="Quyền đã tôn tại"
+                status_code=status.HTTP_403_FORBIDDEN, 
+                detail="Vai trò - Quyền đã tồn tại"
             )
 
         role_permission = RolePermission(**new_role_permission.dict())
         db.add(role_permission)
         db.commit()    
 
-        return role_permission
+        return JSONResponse(
+            status_code=status.HTTP_201_CREATED,
+            content={"message": "Tạo vai trò - quyền thành công"}
+        )
     
     except IntegrityError:
         db.rollback()
@@ -241,7 +269,10 @@ async def delete_role_permission(
         role_permission.delete(synchronize_session=False)
         db.commit()
 
-        return {"message": "Xóa quyền thành công"}
+        return JSONResponse(
+            status_code=status.HTTP_200_OK,
+            content={"message": "Xóa quyền thành công"}
+        )
     
     except IntegrityError:
         db.rollback()
@@ -276,7 +307,10 @@ async def delete_role_permissions(
         role_permissions.delete(synchronize_session=False)
         db.commit()
 
-        return {"message": "Xóa quyền thành công"}
+        return JSONResponse(
+            status_code=status.HTTP_200_OK,
+            content={"message": "Xóa quyền thành công"}
+        )
     
     except IntegrityError:
         db.rollback()
@@ -304,7 +338,10 @@ async def delete_all_role_permissions(
         db.query(RolePermission).delete()
         db.commit()
 
-        return {"message": "Xóa tất cả quyền thành công"}
+        return JSONResponse(
+            status_code=status.HTTP_200_OK,
+            content={"message": "Xóa tất cả quyền thành công"}
+        )
     
     except IntegrityError:
         db.rollback()

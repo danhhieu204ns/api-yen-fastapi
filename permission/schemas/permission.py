@@ -24,11 +24,28 @@ class PermissionResponse(PermissionBase):
         from_attributes = True
 
 
+class ListPermissionResponse(BaseModel):
+    permissions: list[PermissionResponse]
+    tolal_data: int
+
+    class Config:
+        from_attributes = True
+
+
 class PermissionPageableResponse(BaseModel):
-    permissions: list[PermissionBase]
+    permissions: list[PermissionResponse]
 
     total_pages: int
     total_data: int
 
     class Config:
         from_attributes = True
+
+
+class PermissionSearch(BaseModel):
+    name: Optional[str]
+    detail: Optional[str]
+
+    class Config:
+        from_attributes = True
+        orm_mode = True
