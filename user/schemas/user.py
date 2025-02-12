@@ -26,6 +26,7 @@ class UserUpdate(UserBase):
 class UserResponse(BaseModel):
     id: int
     full_name: str
+    username: str
     email: Optional[str] = None
     phone_number: Optional[str] = None
     birthdate: Optional[date] = None
@@ -41,6 +42,7 @@ class UserResponse(BaseModel):
 
 class ListUserResponse(BaseModel):
     users: list[UserResponse]
+    tolal_data: int
 
     class Config:
         from_attributes = True
