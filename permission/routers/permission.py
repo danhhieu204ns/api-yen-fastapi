@@ -1,10 +1,11 @@
 from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from configs.authentication import get_current_user
 from configs.database import get_db
 from permission.models.permission import Permission
-from permission.schemas.permission import PermissionCreate, PermissionUpdate, PermissionResponse, PermissionPageableResponse
+from permission.schemas.permission import *
 import math
 
 
@@ -15,7 +16,7 @@ router = APIRouter(
 
 
 @router.get("/all", 
-            response_model=list[PermissionResponse], 
+            response_model=ListPermissionResponse, 
             status_code=status.HTTP_200_OK)
 async def get_permissions(
         db: Session = Depends(get_db),
@@ -25,7 +26,10 @@ async def get_permissions(
     try:
         permissions = db.query(Permission).all()
 
-        return permissions
+        return ListPermissionResponse(
+            permissions=permissions, 
+            tolal_data=len(permissions)
+        )
     
     except SQLAlchemyError as e:
         raise HTTPException(
@@ -50,13 +54,11 @@ async def get_permission_pageable(
         offset = (page - 1) * page_size
         permissions = db.query(Permission).offset(offset).limit(page_size).all()
 
-        permissions_pageable_res = PermissionPageableResponse(
+        return PermissionPageableResponse(
             permissions=permissions,
             total_pages=total_pages,
             total_data=total_count
         )
-
-        return permissions_pageable_res
     
     except SQLAlchemyError as e:
         raise HTTPException(
@@ -91,23 +93,26 @@ async def get_permission_by_id(
         )
 
 
-@router.get("/search/by-name/{name}",
-            response_model=list[PermissionResponse],)
+@router.get("/search",
+            response_model=ListPermissionResponse)
 async def search_permissions_by_name(
-        name: str,
+        info: PermissionSearch,
         db: Session = Depends(get_db), 
         current_user = Depends(get_current_user)
     ):
 
     try:
-        permissions = db.query(Permission).filter(Permission.name.like(f"%{name}%")).all()
-        if not permissions:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND, 
-                detail=f"Quyền không tồn tại"
-            )
+        permissions = db.query(Permission)
+        if info.name:
+            permissions = permissions.filter(Permission.name.like(f"%{info.name}%"))
+        if info.detail:
+            permissions = permissions.filter(Permission.detail.like(f"%{info.detail}%"))
+        permissions = permissions.all()
 
-        return permissions
+        return ListPermissionResponse(
+            permissions=permissions,
+            tolal_data=len(permissions)
+        )
     
     except SQLAlchemyError as e:
         raise HTTPException(
@@ -137,7 +142,10 @@ async def create_permission(
         db.add(permission)
         db.commit()    
 
-        return permission
+        return JSONResponse(
+            status_code=status.HTTP_201_CREATED,
+            content={"message": "Tạo quyền thành công"}
+        )
     
     except IntegrityError:
         db.rollback()
@@ -241,7 +249,10 @@ async def delete_permission(
         permission.delete(synchronize_session=False)
         db.commit()
 
-        return {"message": "Xóa quyền thành công"}
+        return JSONResponse(
+            status_code=status.HTTP_200_OK,
+            content={"message": "Xóa quyền thành công"}
+        )
     
     except IntegrityError:
         db.rollback()
@@ -276,7 +287,10 @@ async def delete_roles(
         permissions.delete(synchronize_session=False)
         db.commit()
 
-        return {"message": "Xóa quyền thành công"}
+        return JSONResponse(
+            status_code=status.HTTP_200_OK,
+            content={"message": "Xóa quyền thành công"}
+        )
     
     except IntegrityError:
         db.rollback()
@@ -304,7 +318,10 @@ async def delete_all_permissions(
         db.query(Permission).delete()
         db.commit()
 
-        return {"message": "Xóa tất cả quyền thành công"}
+        return JSONResponse(
+            status_code=status.HTTP_200_OK,
+            content={"message": "Xóa tất cả quyền thành công"}
+        )
     
     except IntegrityError:
         db.rollback()

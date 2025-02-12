@@ -1,10 +1,11 @@
 from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from configs.authentication import get_current_user
 from configs.database import get_db
 from role.models.role import Role
-from role.schemas.role import RoleResponse, RoleCreate, RoleUpdate, RolePageableResponse
+from role.schemas.role import ListRoleResponse, RoleResponse, RoleCreate, RoleUpdate, RolePageableResponse
 import math
 
 
@@ -15,7 +16,7 @@ router = APIRouter(
 
 
 @router.get("/all", 
-            response_model=list[RoleResponse], 
+            response_model=ListRoleResponse, 
             status_code=status.HTTP_200_OK)
 async def get_roles(
         db: Session = Depends(get_db),
@@ -25,7 +26,10 @@ async def get_roles(
     try:
         roles = db.query(Role).all()
 
-        return roles
+        return ListRoleResponse(
+            roles=roles, 
+            total_data=len(roles)
+        )
     
     except SQLAlchemyError as e:
         raise HTTPException(
@@ -68,7 +72,7 @@ async def get_roles_pageable(
 @router.get("/{id}", 
             response_model=RoleResponse, 
             status_code=status.HTTP_200_OK)
-async def search_role_by_id(
+async def get_role_by_id(
         id: int,
         db: Session = Depends(get_db), 
         current_user = Depends(get_current_user)
@@ -77,8 +81,10 @@ async def search_role_by_id(
     try:
         role = db.query(Role).filter(Role.id == id).first()
         if not role:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, 
-                                detail=f"Quyền không tồn tại")
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, 
+                detail=f"Quyền không tồn tại"
+            )
 
         return role
     
@@ -100,8 +106,10 @@ async def search_roles_by_name(
     try:
         roles = db.query(Role).filter(Role.name.like(f"%{name}%")).all()
         if not roles:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, 
-                                detail=f"Quyền không tồn tại")
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, 
+                detail=f"Quyền không tồn tại"
+            )
 
         return roles
     
@@ -124,14 +132,19 @@ async def create_role(
     try:
         role = db.query(Role).filter(Role.name == new_role.name).first()
         if role:
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, 
-                                detail="Quyền đã tôn tại")
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST, 
+                detail="Quyền đã tôn tại"
+            )
 
         role = Role(**new_role.dict())
         db.add(role)
         db.commit()    
 
-        return role
+        return JSONResponse(
+            status_code=status.HTTP_201_CREATED,
+            content={"message": "Tạo quyền thành công"}
+        )
     
     except IntegrityError:
         db.rollback()
@@ -162,7 +175,10 @@ async def import_roles(
         db.add_all(roles)
         db.commit()
 
-        return roles
+        return JSONResponse(
+            status_code=status.HTTP_201_CREATED,
+            content={"message": "Nhập quyền thành công"}
+        )
     
     except IntegrityError:
         db.rollback()
@@ -179,7 +195,7 @@ async def import_roles(
         )
 
 
-@router.put("/{id}/update", 
+@router.put("/update/{id}", 
             response_model=RoleResponse, 
             status_code=status.HTTP_200_OK)
 async def update_role(
@@ -192,8 +208,10 @@ async def update_role(
     try:
         role = db.query(Role).filter(Role.id == id)
         if not role.first():
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, 
-                                detail="Quyền không tồn tại")
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST, 
+                detail="Quyền không tồn tại"
+            )
 
         role.update(new_role.dict())
         db.commit()
@@ -215,7 +233,7 @@ async def update_role(
         )
 
 
-@router.delete("/{id}/delete", 
+@router.delete("/delete/{id}", 
             status_code=status.HTTP_200_OK)
 async def delete_role(
         id: int,
@@ -226,12 +244,17 @@ async def delete_role(
     try:
         role = db.query(Role).filter(Role.id == id)
         if not role.first():
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, 
-                                detail="Quyền không tồn tại")
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST, 
+                detail="Quyền không tồn tại"
+            )
         role.delete(synchronize_session=False)
         db.commit()
 
-        return {"message": "Xóa quyền thành công"}
+        return JSONResponse(
+            status_code=status.HTTP_200_OK,
+            content={"message": "Xóa quyền thành công"}
+        )
     
     except IntegrityError:
         db.rollback()
@@ -259,12 +282,17 @@ async def delete_roles(
     try:
         roles = db.query(Role).filter(Role.id.in_(ids))
         if not roles.first():
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, 
-                                detail="Quyền không tồn tại")
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST, 
+                detail="Quyền không tồn tại"
+            )
         roles.delete(synchronize_session=False)
         db.commit()
 
-        return {"message": "Xóa quyền thành công"}
+        return JSONResponse(
+            status_code=status.HTTP_200_OK,
+            content={"message": "Xóa quyền thành công"}
+        )
     
     except IntegrityError:
         db.rollback()
@@ -292,7 +320,10 @@ async def delete_all_roles(
         db.query(Role).delete()
         db.commit()
 
-        return {"message": "Xóa tất cả quyền thành công"}
+        return JSONResponse(
+            status_code=status.HTTP_200_OK,
+            content={"message": "Xóa tất cả quyền thành công"}
+        )
     
     except SQLAlchemyError as e:
         db.rollback()

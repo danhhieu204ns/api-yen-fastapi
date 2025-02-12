@@ -3,8 +3,10 @@ from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from configs.database import get_db
 from configs.authentication import get_current_user
+from role.models.role import Role
+from user.models.user import User
 from user_role.models.user_role import UserRole
-from user_role.schemas.user_role import UserRoleResponse, UserRoleCreate, UserRoleUpdate, UserRolePageableResponse
+from user_role.schemas.user_role import *
 import math
 
 
@@ -15,7 +17,8 @@ router = APIRouter(
 
 
 @router.get("/all", 
-            response_model=list[UserRoleResponse])
+            response_model=ListUserRoleResponse, 
+            status_code=status.HTTP_200_OK)
 async def get_user_roles(
         db: Session = Depends(get_db),
         current_user = Depends(get_current_user)
@@ -24,7 +27,10 @@ async def get_user_roles(
     try:
         user_roles = db.query(UserRole).all()
 
-        return user_roles
+        return ListUserRoleResponse(
+            user_roles=user_roles,
+            total_data=len(user_roles)
+        )
     
     except SQLAlchemyError as e:
         raise HTTPException(
@@ -72,7 +78,7 @@ async def get_user_role_by_user_id(
     ):
     
     try:
-        user_roles = db.query(UserRole).filter(UserRole.id == user_id).all()
+        user_roles = db.query(UserRole).filter(UserRole.user_id == user_id).all()
 
         if not user_roles:
             raise HTTPException(

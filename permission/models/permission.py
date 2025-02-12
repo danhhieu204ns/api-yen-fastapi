@@ -11,7 +11,7 @@ class Permission(Base):
     name = Column(String, nullable=False, unique = True)
     detail = Column(String, nullable=False)
 
-    granted_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=text('now()'))
+    created_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=text('now()'))
 
     role_permissions = relationship("RolePermission", back_populates="permission", passive_deletes=True)
     
