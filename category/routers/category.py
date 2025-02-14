@@ -226,12 +226,19 @@ async def import_categories(
         list_categories.append(category)
     
     if errors:
-        return {"message": errors}
+        return JSONResponse(
+            content={"errors": errors},
+            status_code=400
+        )
     
     try:
         db.bulk_save_objects(list_categories)
         db.commit()
-        return {"message": "Import danh sách danh mục thành công"}
+        return JSONResponse(
+            content={"message": "Import danh sách thể loại thành công"},
+            status_code=201
+        )
+    
     except IntegrityError:
         db.rollback()
         raise HTTPException(

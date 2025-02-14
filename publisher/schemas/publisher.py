@@ -26,6 +26,14 @@ class PublisherResponse(PublisherBase):
         from_attributes = True
 
 
+class ListPublisherResponse(BaseModel):
+    publishers: list[PublisherResponse]
+    total_data: int
+
+    class Config:
+        from_attributes = True
+
+
 class PublisherPageableResponse(BaseModel):
     publishers: list[PublisherResponse]
 
@@ -36,15 +44,18 @@ class PublisherPageableResponse(BaseModel):
         from_attributes = True
 
 
-class PublisherImport(BaseModel):
-    publishers: list[PublisherBase]
+class PublisherSearch(BaseModel):
+    name: Optional[str] = None
+    phone_number: Optional[str] = None
+    address: Optional[str] = None
+    email: Optional[str] = None
 
     class Config:
         from_attributes = True
 
 
 class DeleteMany(BaseModel):
-    ids: list[int]
+    list_id: list[int]
 
     class Config:
         from_attributes = True
