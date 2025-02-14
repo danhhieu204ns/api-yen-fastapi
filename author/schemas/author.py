@@ -27,6 +27,14 @@ class AuthorResponse(AuthorBase):
         from_attributes = True
 
 
+class ListAuthorResponse(BaseModel):
+    authors: list[AuthorResponse]
+    total_data: int
+
+    class Config:
+        from_attributes = True
+
+
 class AuthorPageableResponse(BaseModel):
     authors: list[AuthorResponse]
 
@@ -39,6 +47,13 @@ class AuthorPageableResponse(BaseModel):
 
 class AuthorImport(BaseModel):
     authors: list[AuthorBase]
+
+    class Config:
+        from_attributes = True
+
+
+class AuthorSearch(AuthorBase):
+    name: Optional[str] = None
 
     class Config:
         from_attributes = True
