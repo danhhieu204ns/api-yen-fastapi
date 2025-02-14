@@ -1,11 +1,14 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, status
+from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from configs.authentication import get_current_user
 from configs.database import get_db
 from author.models.author import Author
-from author.schemas.author import AuthorResponse, AuthorCreate, AuthorUpdate, AuthorPageableResponse
+from author.schemas.author import *
 import math
+import pandas as pd
+from io import BytesIO
 
 
 router = APIRouter(
@@ -15,7 +18,7 @@ router = APIRouter(
 
 
 @router.get("/all",
-            response_model=list[AuthorResponse],
+            response_model=ListAuthorResponse,
             status_code=status.HTTP_200_OK)
 async def get_authors(
         db: Session = Depends(get_db)
@@ -24,7 +27,10 @@ async def get_authors(
     try:
         authors = db.query(Author).all()
 
-        return authors
+        return ListAuthorResponse(
+            authors=authors,
+            total_data=len(authors)
+        )
     
     except SQLAlchemyError as e:
         raise HTTPException(
@@ -88,22 +94,32 @@ async def search_author_by_id(
         )
 
 
-@router.get("/search/by-name/{name}",
-            response_model=list[AuthorResponse])
-async def search_authors_by_name(
-        name: str,
+@router.post("/search",
+            response_model=ListAuthorResponse)
+async def search_authors(
+        info: AuthorSearch,
         db: Session = Depends(get_db)
     ):
 
     try:
-        authors = db.query(Author).filter(Author.name.ilike(f"%{name}%")).all()
-        if not authors:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Tác giả không tồn tại"
-            )
+        authors = db.query(Author)
+        if info.name:
+            authors = authors.filter(Author.name.like(f"%{info.name}%"))
+        if info.birthdate:
+            authors = authors.filter(Author.birthdate == info.birthdate)
+        if info.address:
+            authors = authors.filter(Author.address.like(f"%{info.address}%"))
+        if info.pen_name:
+            authors = authors.filter(Author.pen_name.like(f"%{info.pen_name}%"))
+        if info.biography:
+            authors = authors.filter(Author.biography.like(f"%{info.biography}%"))
 
-        return authors
+        authors = authors.all()
+
+        return ListAuthorResponse(
+            authors=authors,
+            total_data=len(authors)
+        )
     
     except SQLAlchemyError as e:
         raise HTTPException(
@@ -113,8 +129,7 @@ async def search_authors_by_name(
 
 
 @router.post("/create",
-                response_model=AuthorResponse,
-                status_code=status.HTTP_201_CREATED)
+            status_code=status.HTTP_201_CREATED)
 async def create_author(
         new_author: AuthorCreate,
         db: Session = Depends(get_db),
@@ -133,7 +148,10 @@ async def create_author(
         db.add(author)
         db.commit()
 
-        return author
+        return JSONResponse(
+            status_code=status.HTTP_201_CREATED,
+            content={"message": "Tạo tác giả thành công"}
+        )
     
     except IntegrityError:
         db.rollback()
@@ -150,33 +168,101 @@ async def create_author(
         )
 
 
-@router.post("/import",
-            response_model=list[AuthorResponse],
-            status_code=status.HTTP_201_CREATED)
-async def import_authors(
-        authors: list[AuthorCreate],
-        db: Session = Depends(get_db),
+@router.post("/import", 
+             status_code=status.HTTP_201_CREATED)
+async def import_author(
+        file: UploadFile,
+        db: Session = Depends(get_db), 
         current_user = Depends(get_current_user)
     ):
 
+    COLUMN_MAPPING = {
+        "Tên tác giả": "name",
+        "Ngày sinh": "birthdate",
+        "Địa chỉ": "address",
+        "Bút danh": "pen_name",
+        "Tiểu sử": "biography"
+    }
+    
+    if file.content_type not in ["application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "application/vnd.ms-excel"]:
+        raise HTTPException(
+            status_code=400, 
+            detail="File không hợp lệ. Vui lòng upload file Excel."
+        )
+    
+    content = await file.read()
+    
     try:
-        authors = [Author(**author.dict()) for author in authors]
-        db.add_all(authors)
-        db.commit()
+        df = pd.read_excel(BytesIO(content))
 
-        return authors
+    except Exception as e:
+        raise HTTPException(
+            status_code=400, 
+            detail=f"Lỗi đọc file: {str(e)}"
+        )
+    
+    try:
+        df.rename(columns=COLUMN_MAPPING, inplace=True)
+
+    except KeyError as e:
+        raise HTTPException(
+            status_code=400, 
+            detail=f"Tiêu đề cột không hợp lệ: {str(e)}"
+        )
+    
+    existing_author_names = {a.name for a in db.query(Author).all()}
+    errors = []
+    list_authors = []
+    
+    for index, row in df.iterrows():
+        name = row.get("name")
+        if not name:
+            errors.append({"Dòng": index + 2, "Lỗi": "Tên tác giả không được để trống."})
+            continue
+        
+        if name in existing_author_names:
+            errors.append({"Dòng": index + 2, "Lỗi": f"Tác giả '{name}' đã tồn tại."})
+            continue
+        
+        birthdate = None if pd.isna(row.get("birthdate")) else str(row.get("birthdate"))
+        address = None if pd.isna(row.get("address")) else row.get("address")
+        pen_name = None if pd.isna(row.get("pen_name")) else row.get("pen_name")
+        biography = None if pd.isna(row.get("biography")) else row.get("biography")
+        
+        author = Author(
+            name=name,
+            birthdate=birthdate,
+            address=address,
+            pen_name=pen_name,
+            biography=biography
+        )
+        list_authors.append(author)
+    
+    if errors:
+        return JSONResponse(
+            status_code=400,
+            content={"errors": errors}
+        )
+    
+    try:
+        db.bulk_save_objects(list_authors)
+        db.commit()
+        return JSONResponse(
+            status_code=201,
+            content={"message": "Import tác giả thành công"}
+        )
     
     except IntegrityError:
         db.rollback()
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Dữ liệu không hợp lệ hoặc vi phạm ràng buộc cơ sở dữ liệu"
+            status_code=409, 
+            detail="Lỗi khi lưu dữ liệu vào database."
         )
     
     except SQLAlchemyError as e:
         db.rollback()
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            status_code=500, 
             detail=f"Lỗi cơ sở dữ liệu: {str(e)}"
         )
 
@@ -199,11 +285,16 @@ async def update_author(
                 detail=f"Tác giả không tồn tại"
             )
         
-        author.update(new_author.dict(), 
-                    synchronize_session=False)
+        author.update(
+            new_author.dict(), 
+            synchronize_session=False
+        )
         db.commit()
 
-        return author.first()
+        return JSONResponse(
+            status_code=status.HTTP_200_OK,
+            content={"message": "Cập nhật tác giả thành công"}
+        )
     
     except IntegrityError:
         db.rollback()
@@ -239,7 +330,10 @@ async def delete_author(
         author.delete(synchronize_session=False)
         db.commit()
 
-        return {"message": "Xóa tác giả thành công"}
+        return JSONResponse(
+            status_code=status.HTTP_200_OK,
+            content={"message": "Xóa tác giả thành công"}
+        )
     
     except IntegrityError:
         db.rollback()
@@ -275,7 +369,10 @@ async def delete_authors(
         authors.delete(synchronize_session=False)
         db.commit()
 
-        return {"message": "Xóa danh sách tác giả thành công"}
+        return JSONResponse(
+            status_code=status.HTTP_200_OK,
+            content={"message": "Xóa danh sách tác giả thành công"}
+        )
     
     except IntegrityError:
         db.rollback()
@@ -303,7 +400,10 @@ async def delete_all_authors(
         db.query(Author).delete()
         db.commit()
 
-        return {"message": "Xóa tất cả tác giả thành công"}
+        return JSONResponse(
+            status_code=status.HTTP_200_OK,
+            content={"message": "Xóa tất cả tác giả thành công"}
+        )
     
     except IntegrityError:
         db.rollback()
