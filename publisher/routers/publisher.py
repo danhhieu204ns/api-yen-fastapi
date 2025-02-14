@@ -1,10 +1,10 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from configs.authentication import get_current_user
 from configs.database import get_db
 from publisher.models.publisher import Publisher
-from publisher.schemas.publisher import DeleteMany, PublisherResponse, PublisherCreate, PublisherUpdate, PublisherPageableResponse, PublisherImport
+from publisher.schemas.publisher import *
 import math
 
 
@@ -15,7 +15,7 @@ router = APIRouter(
 
 
 @router.get("/all",
-            response_model=list[PublisherResponse],
+            response_model=ListPublisherResponse,
             status_code=status.HTTP_200_OK)
 async def get_publishers(
         db: Session = Depends(get_db)
@@ -24,7 +24,10 @@ async def get_publishers(
     try:
         publishers = db.query(Publisher).all()
 
-        return publishers
+        return ListPublisherResponse(
+            publishers=publishers,
+            total_data=len(publishers)
+        )
     
     except SQLAlchemyError as e:
         raise HTTPException(
@@ -48,13 +51,11 @@ async def get_publishers_pageable(
         offset = (page - 1) * page_size
         publishers = db.query(Publisher).offset(offset).limit(page_size).all()
 
-        publishers_pageable_res = PublisherPageableResponse(
+        return PublisherPageableResponse(
             publishers=publishers,
             total_pages=total_pages,
             total_data=total_count
         )
-
-        return publishers_pageable_res
     
     except SQLAlchemyError as e:
         raise HTTPException(
@@ -88,23 +89,29 @@ async def search_publisher_by_id(
         )
 
 
-@router.get("/search/by-name/{name}",
-            response_model=list[PublisherResponse], 
+@router.post("/search",
+            response_model=ListPublisherResponse, 
             status_code=status.HTTP_200_OK)
-async def search_publisher_by_name(
-        name: str,
+async def search_publisher(
+        info: PublisherSearch,
         db: Session = Depends(get_db)
     ):
 
     try:
-        publishers = db.query(Publisher).filter(Publisher.name.like(f"%{name}%")).all()
-        if not publishers:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Nhà xuất bản không tồn tại"
-            )
+        publishers = db.query(Publisher)
+        if info.name:
+            publishers = publishers.filter(Publisher.name.like(f"%{info.name}%"))
+        if info.phone_number:
+            publishers = publishers.filter(Publisher.phone_number.like(f"%{info.phone_number}%"))
+        if info.address:
+            publishers = publishers.filter(Publisher.address.like(f"%{info.address}%"))
 
-        return publishers
+        publishers = publishers.all()
+
+        return ListPublisherResponse(
+            publishers=publishers,
+            total_data=len(publishers)
+        )
     
     except SQLAlchemyError as e:
         raise HTTPException(
@@ -152,10 +159,9 @@ async def create_publisher(
 
 
 @router.post("/import",
-            response_model=list[PublisherResponse],
             status_code=status.HTTP_201_CREATED)
 async def import_publishers(
-        publishers: PublisherImport,
+        file: UploadFile = File(...),
         db: Session = Depends(get_db),
         current_user = Depends(get_current_user)
     ):
