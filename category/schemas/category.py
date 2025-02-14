@@ -24,6 +24,14 @@ class CategoryResponse(CategoryBase):
         from_attributes = True
 
 
+class ListCategoryResponse(BaseModel):
+    categories: list[CategoryResponse]
+    total_data: int
+
+    class Config:
+        from_attributes = True
+
+
 class CategoryPageableResponse(BaseModel):
     categories: list[CategoryResponse]
 
@@ -34,8 +42,17 @@ class CategoryPageableResponse(BaseModel):
         from_attributes = True
 
 
-class CategoryImport(BaseModel):
-    categories: list[CategoryBase]
+class CategorySearch(BaseModel):
+    name: Optional[str] = None
+    age_limit: Optional[int] = None
+    description: Optional[str] = None
+
+    class Config:
+        from_attributes = True
+
+
+class CategoryDelete(BaseModel):
+    list_id: list[int]
 
     class Config:
         from_attributes = True
