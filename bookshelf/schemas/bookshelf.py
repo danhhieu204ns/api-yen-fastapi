@@ -13,6 +13,7 @@ class BookshelfCreate(BookshelfBase):
 
 
 class BookshelfUpdate(BaseModel):
+    name: Optional[str] = None
     status: Optional[str] = None
 
 
@@ -20,6 +21,14 @@ class BookshelfResponse(BookshelfBase):
     id: int
     created_at: datetime
     
+    class Config:
+        from_attributes = True
+
+
+class ListBookshelfResponse(BaseModel):
+    bookshelfs: list[BookshelfResponse]
+    total_data: int
+
     class Config:
         from_attributes = True
 
@@ -34,8 +43,10 @@ class BookshelfPageableResponse(BaseModel):
         from_attributes = True
         
 
-class BookshelfImport(BaseModel):
-    bookshelfs: list[BookshelfBase]
+class BookshelfSearch(BaseModel):
+    name: Optional[str] = None
+    status: Optional[str] = None
 
-    class Config:
-        from_attributes = True
+
+class DeleteMany(BaseModel):
+    ids: list[int]
