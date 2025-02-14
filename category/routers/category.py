@@ -1,11 +1,14 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from io import BytesIO
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, status
+from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from configs.authentication import get_current_user
 from configs.database import get_db
 from category.models.category import Category
-from category.schemas.category import CategoryResponse, CategoryCreate, CategoryUpdate, CategoryPageableResponse
+from category.schemas.category import *
 import math
+import pandas as pd
 
 
 router = APIRouter(
@@ -15,7 +18,7 @@ router = APIRouter(
 
 
 @router.get("/all",
-            response_model=list[CategoryResponse],
+            response_model=ListCategoryResponse,
             status_code=status.HTTP_200_OK)
 async def get_categories(
         db: Session = Depends(get_db)
@@ -24,7 +27,10 @@ async def get_categories(
     try:
         categories = db.query(Category).all()
         
-        return categories
+        return ListCategoryResponse(
+            categories=categories,
+            total_data=len(categories)
+        )
     
     except SQLAlchemyError as e:
         raise HTTPException(
@@ -48,13 +54,11 @@ async def get_categories_pageable(
         offset = (page - 1) * page_size
         categories = db.query(Category).offset(offset).limit(page_size).all()
 
-        categories_pageable_res = CategoryPageableResponse(
+        return CategoryPageableResponse(
             categories=categories,
             total_pages=total_pages,
             total_data=total_count
         )
-
-        return categories_pageable_res
     
     except SQLAlchemyError as e:
         raise HTTPException(
@@ -88,23 +92,29 @@ async def search_category_by_id(
         )
 
 
-@router.get("/search/by-name/{name}",
-            response_model=CategoryResponse,
+@router.post("/search",
+            response_model=ListCategoryResponse,
             status_code=status.HTTP_200_OK)
-async def search_category_by_name(
-        name: str,
+async def search_category(
+        info: CategorySearch,
         db: Session = Depends(get_db)
     ):
 
     try:
-        category = db.query(Category).filter(Category.name.ilike(f"%{name}%")).first()
-        if not category:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Thể loại không tồn tại"
-            )
+        category = db.query(Category)
+        if info.name:
+            category = category.filter(Category.name.like(f"%{info.name}%"))
+        if info.age_limit:
+            category = category.filter(Category.age_limit == info.age_limit)
+        if info.description:
+            category = category.filter(Category.description.like(f"%{info.description}%"))
 
-        return category
+        categories = category.all()
+
+        return ListCategoryResponse(
+            categories=categories,
+            total_data=len(categories)
+        )
     
     except SQLAlchemyError as e:
         raise HTTPException(
@@ -134,7 +144,10 @@ async def create_category(
         db.add(category)
         db.commit()
 
-        return category
+        return JSONResponse(
+            content={"message": "Tạo thể loại thành công"},
+            status_code=status.HTTP_201_CREATED
+        )
     
     except IntegrityError:
         db.rollback()
@@ -152,37 +165,78 @@ async def create_category(
 
 
 @router.post("/import",
-            response_model=list[CategoryResponse],
             status_code=status.HTTP_201_CREATED)
 async def import_categories(
-        categories: list[CategoryCreate],
+        file: UploadFile,
         db: Session = Depends(get_db),
         current_user = Depends(get_current_user)
     ):
 
-    try:
-        categories_db = []
-        for category in categories:
-            category_db = db.query(Category).filter(Category.name == category.name).first()
-            if category_db:
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail="Thể loại đã tồn tại"
-                )
-
-            category_db = Category(**category.dict())
-            db.add(category_db)
-            categories_db.append(category_db)
-
-        db.commit()
-
-        return categories_db
+    COLUMN_MAPPING = {
+        "Tên danh mục": "name",
+        "Giới hạn tuổi": "age_limit",
+        "Mô tả": "description"
+    }
     
+    if file.content_type not in ["application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "application/vnd.ms-excel"]:
+        raise HTTPException(
+            status_code=400, 
+            detail="File không hợp lệ. Vui lòng upload file Excel."
+        )
+    
+    content = await file.read()
+    try:
+        df = pd.read_excel(BytesIO(content))
+    except Exception as e:
+        raise HTTPException(
+            status_code=400, 
+            detail=f"Lỗi đọc file: {str(e)}"
+        )
+    
+    try:
+        df.rename(columns=COLUMN_MAPPING, inplace=True)
+    except KeyError as e:
+        raise HTTPException(
+            status_code=400, 
+            detail=f"Tiêu đề cột không hợp lệ: {str(e)}"
+        )
+    
+    existing_category_names = {c.name for c in db.query(Category).all()}
+    errors = []
+    list_categories = []
+    
+    for index, row in df.iterrows():
+        name = row.get("name")
+        if not name:
+            errors.append({"Dòng": index + 2, "Lỗi": "Tên danh mục không được để trống."})
+            continue
+        
+        if name in existing_category_names:
+            errors.append({"Dòng": index + 2, "Lỗi": f"Danh mục '{name}' đã tồn tại."})
+            continue
+        
+        age_limit = None if pd.isna(row.get("age_limit")) else int(row.get("age_limit"))
+        description = None if pd.isna(row.get("description")) else row.get("description")
+        
+        category = Category(
+            name=name,
+            age_limit=age_limit,
+            description=description
+        )
+        list_categories.append(category)
+    
+    if errors:
+        return {"message": errors}
+    
+    try:
+        db.bulk_save_objects(list_categories)
+        db.commit()
+        return {"message": "Import danh sách danh mục thành công"}
     except IntegrityError:
         db.rollback()
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Dữ liệu không hợp lệ hoặc vi phạm ràng buộc cơ sở dữ liệu"
+            status_code=409, 
+            detail="Lỗi khi lưu dữ liệu vào database."
         )
     
     except SQLAlchemyError as e:
@@ -193,7 +247,7 @@ async def import_categories(
         )
 
 
-@router.put("/{id}/update",
+@router.put("/update/{id}",
             response_model=CategoryResponse,
             status_code=status.HTTP_200_OK)
 async def update_category(
@@ -211,11 +265,16 @@ async def update_category(
                 detail="Thể loại không tồn tại"
             )
 
-        category_db.update(category.dict(), 
-                        synchronize_session=False)
+        category_db.update(
+            category.dict(), 
+            synchronize_session=False
+        )
         db.commit()
 
-        return category_db.first()
+        return JSONResponse(
+            content={"message": "Cập nhật thể loại thành công"},
+            status_code=status.HTTP_200_OK
+        )
     
     except IntegrityError:
         db.rollback()
@@ -232,7 +291,7 @@ async def update_category(
         )
 
 
-@router.delete("/{id}/delete",
+@router.delete("/delete/{id}",
             status_code=status.HTTP_200_OK)
 async def delete_category(
         id: int,
@@ -251,7 +310,10 @@ async def delete_category(
         category.delete(synchronize_session=False)
         db.commit()
 
-        return {"message": "Xóa thể loại thành công"}
+        return JSONResponse(
+            content={"message": "Xóa thể loại thành công"},
+            status_code=status.HTTP_200_OK
+        )
     
     except IntegrityError:
         db.rollback()
@@ -271,23 +333,26 @@ async def delete_category(
 @router.delete("/delete-many",
             status_code=status.HTTP_200_OK)
 async def delete_categories(
-        ids: list[int],
+        ids: CategoryDelete,
         db: Session = Depends(get_db),
         current_user = Depends(get_current_user)
     ):
 
     try:
-        categories = db.query(Category).filter(Category.id.in_(ids))
+        categories = db.query(Category).filter(Category.id.in_(ids.list_id))
         if not categories.first():
             raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
+                status_code=status.HTTP_404_NOT_FOUND,
                 detail="Thể loại không tồn tại"
             )
 
         categories.delete(synchronize_session=False)
         db.commit()
 
-        return {"message": "Xóa danh sách thể loại thành công"}
+        return JSONResponse(
+            content={"message": "Xóa danh sách thể loại thành công"},
+            status_code=status.HTTP_200_OK
+        )
     
     except IntegrityError:
         db.rollback()
@@ -315,7 +380,10 @@ async def delete_all_categories(
         db.query(Category).delete()
         db.commit()
 
-        return {"message": "Xóa tất cả thể loại thành công"}
+        return JSONResponse(
+            content={"message": "Xóa tất cả thể loại thành công"},
+            status_code=status.HTTP_200_OK
+        )
     
     except SQLAlchemyError as e:
         db.rollback()
