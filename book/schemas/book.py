@@ -9,10 +9,6 @@ class BookBase(BaseModel):
     summary: Optional[str] = None
     pages: Optional[int] = None
     language: Optional[str] = None
-    
-    author_id: int
-    category_id: int
-    publisher_id: int
 
 
 class BookCreate(BookBase):
@@ -31,6 +27,14 @@ class BookResponse(BookBase):
         from_attributes = True
 
 
+class ListBookResponse(BaseModel):
+    books: list[BookResponse]
+    total_data: int
+
+    class Config:
+        from_attributes = True
+
+
 class BookPageableResponse(BaseModel):
     books: list[BookResponse]
 
@@ -40,8 +44,10 @@ class BookPageableResponse(BaseModel):
     class Config:
         from_attributes = True
 
-class BookImport(BaseModel):
-    books: list[BookBase]
 
-    class Config:
-        from_attributes = True
+class BookSearch(BookBase):
+    name: Optional[str] = None
+
+
+class DeleteMany(BaseModel):
+    ids: list[int]

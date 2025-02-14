@@ -13,7 +13,7 @@ class BookCopy(Base):
     created_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=text('now()'))
 
     book_id = Column(Integer, ForeignKey("books.id", ondelete="CASCADE"), nullable=False)
-    bookshelf_id = Column(Integer, ForeignKey("bookshelfs.id", ondelete="CASCADE"), nullable=False)
+    bookshelf_id = Column(Integer, ForeignKey("bookshelfs.id", ondelete="CASCADE"), nullable=True)
 
     book = relationship("Book", back_populates="book_copies")
     bookshelf = relationship("Bookshelf", back_populates="book_copies")

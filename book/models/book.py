@@ -17,8 +17,8 @@ class Book(Base):
     created_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=text('now()'))
 
     author_id = Column(Integer, ForeignKey("authors.id", ondelete="CASCADE"), nullable=True)
-    publisher_id = Column(Integer, ForeignKey("publishers.id", ondelete="CASCADE"), nullable=False)
-    category_id = Column(Integer, ForeignKey("categories.id", ondelete="CASCADE"), nullable=False)
+    publisher_id = Column(Integer, ForeignKey("publishers.id", ondelete="CASCADE"), nullable=True)
+    category_id = Column(Integer, ForeignKey("categories.id", ondelete="CASCADE"), nullable=True)
 
     author = relationship("Author", back_populates="books")
     publisher = relationship("Publisher", back_populates="books")
