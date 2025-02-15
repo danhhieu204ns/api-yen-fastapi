@@ -5,13 +5,11 @@ from typing import Optional
 
 class BookCopyBase(BaseModel):
     status: Optional[str] = None
-    
-    book_id: int
-    bookshelf_id: int
 
 
 class BookCopyCreate(BookCopyBase):
-    pass
+    book_id: int
+    bookshelf_id: Optional[int] = None
 
 
 class BookCopyUpdate(BookCopyBase):
@@ -26,6 +24,14 @@ class BookCopyResponse(BookCopyBase):
         from_attributes = True
 
 
+class ListBookCopyResponse(BaseModel):
+    book_copies: list[BookCopyResponse]
+    total_data: int
+
+    class Config:
+        from_attributes = True
+
+
 class BookCopyPageableResponse(BaseModel):
     book_copies: list[BookCopyResponse]
 
@@ -35,8 +41,10 @@ class BookCopyPageableResponse(BaseModel):
     class Config:
         from_attributes = True
 
-class BookCopyImport(BaseModel):
-    book_copies: list[BookCopyBase]
 
-    class Config:
-        from_attributes = True
+class BookCopySearch(BaseModel):
+    status: Optional[str] = None
+
+
+class DeleteMany(BaseModel):
+    ids: list[int]
