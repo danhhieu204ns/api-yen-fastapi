@@ -6,9 +6,9 @@ from typing import Optional
 class BorrowBase(BaseModel):
     user_id: int
     book_copy_id: int
-    staff_id: Optional[int]
-    duration: Optional[int]
-    status: Optional[str]
+    staff_id: Optional[int] = None
+    duration: Optional[int] = None
+    status: Optional[str] = None
 
     class Config:
         from_attributes = True
@@ -19,12 +19,21 @@ class BorrowCreate(BorrowBase):
 
 
 class BorrowUpdate(BorrowBase):
-    pass
+    user_id: Optional[int] = None
+    book_copy_id: Optional[int] = None
 
 
 class BorrowResponse(BorrowBase):
     id: int
     created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class ListBorrowResponse(BaseModel):
+    borrows: list[BorrowResponse]
+    total_data: int
 
     class Config:
         from_attributes = True
@@ -40,8 +49,19 @@ class BorrowPageableResponse(BaseModel):
         from_attributes = True
 
 
-class BorrowImport(BaseModel):
-    borrows: list[BorrowCreate]
+class BorrowSearch(BaseModel):
+    user_id: Optional[int] = None
+    book_copy_id: Optional[int] = None
+    staff_id: Optional[int] = None
+    status: Optional[str] = None
+    duration: Optional[int] = None
+
+    class Config:
+        from_attributes = True
+
+
+class DeleteMany(BaseModel):
+    ids: list[int]
 
     class Config:
         from_attributes = True

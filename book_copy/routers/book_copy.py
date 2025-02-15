@@ -1,11 +1,17 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from io import BytesIO
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, status
+from fastapi.params import File
+from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
+from book.models.book import Book
+from bookshelf.models.bookshelf import Bookshelf
 from configs.authentication import get_current_user
 from configs.database import get_db
 from book_copy.models.book_copy import BookCopy
-from book_copy.schemas.book_copy import BookCopyCreate, BookCopyUpdate, BookCopyResponse, BookCopyPageableResponse, BookCopyImport
+from book_copy.schemas.book_copy import *
 import math
+import pandas as pd
 
 
 router = APIRouter(
@@ -15,7 +21,7 @@ router = APIRouter(
 
 
 @router.get("/all",
-            response_model=list[BookCopyResponse],
+            response_model=ListBookCopyResponse,
             status_code=status.HTTP_200_OK)
 async def get_book_copies(
         db: Session = Depends(get_db)
@@ -24,7 +30,10 @@ async def get_book_copies(
     try:
         book_copies = db.query(BookCopy).all()
 
-        return book_copies
+        return ListBookCopyResponse(
+            book_copies=book_copies, 
+            total_data=len(book_copies)
+        )
 
     except SQLAlchemyError as e:
         raise HTTPException(
@@ -49,13 +58,11 @@ async def get_book_copy_pageable(
 
         book_copies = db.query(BookCopy).offset(offset).limit(page_size).all()
 
-        book_copies_pageable = BookCopyPageableResponse(
-            total_count=total_count,
+        return BookCopyPageableResponse(
+            total_data=total_count,
             total_pages=total_pages,
             book_copies=book_copies
         )
-
-        return book_copies_pageable
     
     except SQLAlchemyError as e:
         raise HTTPException(
@@ -67,7 +74,7 @@ async def get_book_copy_pageable(
 @router.get("/{id}",
             response_model=BookCopyResponse,
             status_code=status.HTTP_200_OK)
-async def search_book_copy_by_id(
+async def get_book_copy_by_id(
         id: int,
         db: Session = Depends(get_db)
     ):
@@ -87,10 +94,34 @@ async def search_book_copy_by_id(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Lỗi cơ sở dữ liệu: {str(e)}"
         )
+    
+
+@router.post("/search",
+            response_model=ListBookCopyResponse,
+            status_code=status.HTTP_200_OK)
+async def search_book_copy(
+        search: BookCopySearch,
+        db: Session = Depends(get_db)
+    ):
+
+    try:
+        book_copies = db.query(BookCopy).filter(
+            BookCopy.status.ilike(f"%{search.status}%")
+        ).all()
+
+        return ListBookCopyResponse(
+            book_copies=book_copies, 
+            total_data=len(book_copies)
+        )
+    
+    except SQLAlchemyError as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Lỗi cơ sở dữ liệu: {str(e)}"
+        )
 
 
-@router.post("/create",
-            response_model=BookCopyResponse,
+@router.post("/create", 
             status_code=status.HTTP_201_CREATED)
 async def create_book_copy(
         new_book_copy: BookCopyCreate,
@@ -103,7 +134,10 @@ async def create_book_copy(
         db.add(book_copy)
         db.commit()
 
-        return book_copy
+        return JSONResponse(
+            status_code=status.HTTP_201_CREATED,
+            content={"message": "Tạo bản sao sách thành công"}
+        )
     
     except IntegrityError:
         db.rollback()
@@ -124,29 +158,87 @@ async def create_book_copy(
             response_model=list[BookCopyResponse],
             status_code=status.HTTP_201_CREATED)
 async def import_book_copies(
-        book_copies: BookCopyImport,
+        file: UploadFile = File(...),
         db: Session = Depends(get_db),
         current_user = Depends(get_current_user)
     ):
 
+    COLUMN_MAPPING = {
+        "Trạng thái": "status",
+        "Tên sách": "book_name",
+        "Tên kệ": "bookshelf_name"
+    }
+    
+    if file.content_type not in ["application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "application/vnd.ms-excel"]:
+        raise HTTPException(
+            status_code=400, 
+            detail="File không hợp lệ. Vui lòng upload file Excel."
+        )
+    
+    content = await file.read()
     try:
-        book_copies_db = [BookCopy(**book_copy.dict()) for book_copy in book_copies.book_copies]
-        db.add_all(book_copies_db)
+        df = pd.read_excel(BytesIO(content))
+    except Exception as e:
+        raise HTTPException(
+            status_code=400, 
+            detail=f"Lỗi đọc file: {str(e)}"
+        )
+    
+    try:
+        df.rename(columns=COLUMN_MAPPING, inplace=True)
+    except KeyError as e:
+        raise HTTPException(
+            status_code=400, 
+            detail=f"Tiêu đề cột không hợp lệ: {str(e)}"
+        )
+    
+    book_name_to_id = {b.name: b.id for b in db.query(Book).all()}
+    bookshelf_name_to_id = {bs.name: bs.id for bs in db.query(Bookshelf).all()}
+    
+    errors = []
+    list_book_copies = []
+    
+    for index, row in df.iterrows():
+        book_id = book_name_to_id.get(row.get("book_name"))
+        bookshelf_id = bookshelf_name_to_id.get(row.get("bookshelf_name")) if row.get("bookshelf_name") else None
+        status = row.get("status", "AVAILABLE")
+        
+        if not book_id:
+            errors.append({"Dòng": index + 2, "Lỗi": f"Sách '{row.get('book_name')}' không tồn tại."})
+            continue
+        
+        book_copy = BookCopy(
+            status=status,
+            book_id=book_id,
+            bookshelf_id=bookshelf_id
+        )
+        list_book_copies.append(book_copy)
+       
+    if errors:
+        return JSONResponse(
+            status_code=400,
+            content={"errors": errors}
+        )
+    
+    try:
+        db.bulk_save_objects(list_book_copies)
         db.commit()
-
-        return book_copies_db
+        return JSONResponse(
+            status_code=201,
+            content={"message": "Nhập dữ liệu thành công"}
+        )
     
     except IntegrityError:
         db.rollback()
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Dữ liệu không hợp lệ hoặc vi phạm ràng buộc cơ sở dữ liệu"
+            status_code=409, 
+            detail="Lỗi khi lưu dữ liệu vào database."
         )
     
     except SQLAlchemyError as e:
         db.rollback()
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            status_code=409,
             detail=f"Lỗi cơ sở dữ liệu: {str(e)}"
         )
 
@@ -169,11 +261,16 @@ async def update_book_copy(
                 detail="Bản sao sách không tồn tại"
             )
 
-        book_copy_db.update(book_copy.dict(), 
-                            synchronize_session=False)
+        book_copy_db.update(
+            book_copy.dict(), 
+            synchronize_session=False
+        )
         db.commit()
 
-        return book_copy_db.first()
+        return JSONResponse(
+            status_code=status.HTTP_200_OK,
+            content={"message": "Cập nhật bản sao sách thành công"}
+        )
     
     except IntegrityError:
         db.rollback()
@@ -209,7 +306,10 @@ async def delete_book_copy(
         book_copy.delete(synchronize_session=False)
         db.commit()
 
-        return {"message": "Xóa bản sao sách thành công"}
+        return JSONResponse(
+            status_code=status.HTTP_200_OK,
+            content={"message": "Xóa bản sao sách thành công"}
+        )
     
     except IntegrityError:
         db.rollback()
@@ -229,13 +329,13 @@ async def delete_book_copy(
 @router.delete("/delete-many",
             status_code=status.HTTP_200_OK)
 async def delete_book_copies(
-        ids: list[int],
+        ids: DeleteMany, 
         db: Session = Depends(get_db),
         current_user = Depends(get_current_user)
     ):
 
     try:
-        book_copies = db.query(BookCopy).filter(BookCopy.id.in_(ids))
+        book_copies = db.query(BookCopy).filter(BookCopy.id.in_(ids.ids))
         if not book_copies.first():
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
@@ -245,7 +345,10 @@ async def delete_book_copies(
         book_copies.delete(synchronize_session=False)
         db.commit()
 
-        return {"message": "Xóa danh sách bản sao sách thành công"}
+        return JSONResponse(
+            status_code=status.HTTP_200_OK,
+            content={"message": "Xóa bản sao sách thành công"}
+        )
     
     except IntegrityError:
         db.rollback()
@@ -273,7 +376,10 @@ async def delete_all_book_copies(
         db.query(BookCopy).delete()
         db.commit()
 
-        return {"message": "Xóa tất cả bản sao sách thành công"}
+        return JSONResponse(
+            status_code=status.HTTP_200_OK,
+            content={"message": "Xóa tất cả bản sao sách thành công"}
+        )
     
     except IntegrityError:
         db.rollback()
