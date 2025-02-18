@@ -93,10 +93,12 @@ async def search_category_by_id(
 
 
 @router.post("/search",
-            response_model=ListCategoryResponse,
+            response_model=CategoryPageableResponse,
             status_code=status.HTTP_200_OK)
 async def search_category(
         info: CategorySearch,
+        page: int,
+        page_size: int,
         db: Session = Depends(get_db)
     ):
 
@@ -109,11 +111,15 @@ async def search_category(
         if info.description:
             category = category.filter(Category.description.like(f"%{info.description}%"))
 
-        categories = category.all()
+        total_count = category.count()
+        total_pages = math.ceil(total_count / page_size)
+        offset = (page - 1) * page_size
+        categories = category.offset(offset).limit(page_size).all()
 
-        return ListCategoryResponse(
+        return CategoryPageableResponse(
             categories=categories,
-            total_data=len(categories)
+            total_pages=total_pages,
+            total_data=total_count
         )
     
     except SQLAlchemyError as e:
