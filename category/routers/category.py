@@ -1,6 +1,6 @@
 from io import BytesIO
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, status
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, StreamingResponse
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from configs.authentication import get_current_user
@@ -65,6 +65,44 @@ async def get_categories_pageable(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Lỗi cơ sở dữ liệu: {str(e)}"
         )
+
+
+@router.get("/export", status_code=status.HTTP_200_OK)
+async def export_categories(db: Session = Depends(get_db)):
+    try:
+        categories = db.query(Category).all()
+        df = pd.DataFrame([{
+            "id": c.id,
+            "name": c.name,
+            "age_limit": c.age_limit,
+            "description": c.description
+        } for c in categories])
+
+        # Kiểm tra nếu không có dữ liệu
+        if df.empty:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Không có dữ liệu để xuất"
+            )
+
+        # Tạo file Excel
+        output = BytesIO()
+        with pd.ExcelWriter(output, engine="xlsxwriter") as writer:
+            df.to_excel(writer, index=False, sheet_name="Categories")
+        output.seek(0)
+
+        headers = {
+            "Content-Disposition": "attachment; filename=categories.xlsx",
+            "Content-Type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        }
+
+        return StreamingResponse(output, headers=headers, media_type=headers["Content-Type"])
+
+    except SQLAlchemyError as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Lỗi cơ sở dữ liệu: {str(e)}"
+        )
     
 
 @router.get("/{id}",
@@ -99,7 +137,8 @@ async def search_category(
         info: CategorySearch,
         page: int,
         page_size: int,
-        db: Session = Depends(get_db)
+        db: Session = Depends(get_db), 
+        current_user = Depends(get_current_user)
     ):
 
     try:
