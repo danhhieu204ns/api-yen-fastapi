@@ -57,3 +57,10 @@ class AuthorSearch(AuthorBase):
 
     class Config:
         from_attributes = True
+
+
+class AuthorDelete(AuthorBase):
+    list_id: list[int]
+
+    class Config:
+        from_attributes = True
