@@ -59,7 +59,7 @@ class AuthorSearch(AuthorBase):
         from_attributes = True
 
 
-class AuthorDelete(AuthorBase):
+class AuthorDelete(BaseModel):
     list_id: list[int]
 
     class Config:
