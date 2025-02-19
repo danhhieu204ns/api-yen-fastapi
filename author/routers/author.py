@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, status
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, StreamingResponse
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from configs.authentication import get_current_user
@@ -67,6 +67,46 @@ async def get_author_pageable(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Lỗi cơ sở dữ liệu: {str(e)}"
         )
+    
+
+@router.get("/export", 
+            status_code=status.HTTP_200_OK)
+async def export_authors(
+        db: Session = Depends(get_db),
+        current_user = Depends(get_current_user)
+    ):
+
+    try:
+        authors = db.query(Author).all()
+        df = pd.DataFrame([{
+            "Tên tác giả": a.name,
+            "Ngày sinh": a.birthdate,
+            "Địa chỉ": a.address,
+            "Bút danh": a.pen_name,
+            "Tiểu sử": a.biography
+        } for a in authors])
+        
+        output = BytesIO()
+        writer = pd.ExcelWriter(output, engine='xlsxwriter')
+        df.to_excel(writer, sheet_name='Authors', index=False)
+        writer.close()
+        output.seek(0)
+
+        headers = {
+            'Content-Disposition': 'attachment; filename="authors.xlsx"'
+        }
+        
+        return StreamingResponse(
+            output,
+            headers=headers,
+            media_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        )
+    
+    except Exception as e:
+        raise HTTPException(
+            status_code=500, 
+            detail=f"Lỗi xuất dữ liệu: {str(e)}"
+        )
 
 
 @router.get("/{id}",
@@ -95,9 +135,11 @@ async def search_author_by_id(
 
 
 @router.post("/search",
-            response_model=ListAuthorResponse)
+            response_model=AuthorPageableResponse)
 async def search_authors(
         info: AuthorSearch,
+        page: int,
+        page_size: int,
         db: Session = Depends(get_db)
     ):
 
@@ -114,11 +156,15 @@ async def search_authors(
         if info.biography:
             authors = authors.filter(Author.biography.like(f"%{info.biography}%"))
 
-        authors = authors.all()
+        total_count = authors.count()
+        total_pages = math.ceil(total_count / page_size)
+        offset = (page - 1) * page_size
+        authors = authors.offset(offset).limit(page_size).all()
 
-        return ListAuthorResponse(
+        return AuthorPageableResponse(
             authors=authors,
-            total_data=len(authors)
+            total_pages=total_pages,
+            total_data=total_count
         )
     
     except SQLAlchemyError as e:
@@ -353,13 +399,13 @@ async def delete_author(
 @router.delete("/delete-many",
                 status_code=status.HTTP_200_OK)
 async def delete_authors(
-        ids: list[int],
+        ids: AuthorDelete,
         db: Session = Depends(get_db),
         current_user = Depends(get_current_user)
     ):
 
     try:
-        authors = db.query(Author).filter(Author.id.in_(ids))
+        authors = db.query(Author).filter(Author.id.in_(ids.list_id))
         if not authors.first():
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
