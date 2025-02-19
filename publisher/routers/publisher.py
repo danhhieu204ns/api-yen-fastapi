@@ -1,6 +1,6 @@
 from io import BytesIO
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, StreamingResponse
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from configs.authentication import get_current_user
@@ -65,6 +65,45 @@ async def get_publishers_pageable(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Lỗi cơ sở dữ liệu: {str(e)}"
         )
+    
+
+@router.get("/export",
+            status_code=status.HTTP_200_OK)
+async def export_publishers(
+        db: Session = Depends(get_db), 
+        current_user = Depends(get_current_user)
+    ):
+
+    try:
+        publishers = db.query(Publisher).all()
+        df = pd.DataFrame([{
+            "Tên nhà xuất bản": p.name,
+            "Email": p.email,
+            "Địa chỉ": p.address,
+            "Số điện thoại": p.phone_number
+        } for p in publishers])
+        
+        output = BytesIO()
+        writer = pd.ExcelWriter(output, engine='xlsxwriter')
+        df.to_excel(writer, sheet_name='Publishers', index=False)
+        writer.close()
+        output.seek(0)
+
+        headers = {
+            'Content-Disposition': 'attachment; filename="publishers.xlsx"'
+        }
+        
+        return StreamingResponse(
+            output,
+            headers=headers,
+            media_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        )
+    
+    except Exception as e:
+        raise HTTPException(
+            status_code=500, 
+            detail=f"Lỗi xuất dữ liệu: {str(e)}"
+        )
 
 
 @router.get("/{id}",
@@ -93,10 +132,12 @@ async def search_publisher_by_id(
 
 
 @router.post("/search",
-            response_model=ListPublisherResponse, 
+            response_model=PublisherPageableResponse, 
             status_code=status.HTTP_200_OK)
 async def search_publisher(
         info: PublisherSearch,
+        page: int,
+        page_size: int,
         db: Session = Depends(get_db)
     ):
 
@@ -109,11 +150,16 @@ async def search_publisher(
         if info.address:
             publishers = publishers.filter(Publisher.address.like(f"%{info.address}%"))
 
-        publishers = publishers.all()
+        total_count = publishers.count()
+        total_pages = math.ceil(total_count / page_size)
+        offset = (page - 1) * page_size
 
-        return ListPublisherResponse(
+        publishers = publishers.offset(offset).limit(page_size).all()
+
+        return PublisherPageableResponse(
             publishers=publishers,
-            total_data=len(publishers)
+            total_pages=total_pages,
+            total_data=total_count
         )
     
     except SQLAlchemyError as e:
@@ -397,4 +443,3 @@ async def delete_all_publishers(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Lỗi cơ sở dữ liệu: {str(e)}"
         )
-    
