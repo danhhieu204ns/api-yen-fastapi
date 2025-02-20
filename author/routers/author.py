@@ -110,8 +110,7 @@ async def export_authors(
 
 
 @router.get("/{id}",
-            response_model=AuthorResponse,
-            status_code=status.HTTP_200_OK)
+            response_model=AuthorResponse)
 async def search_author_by_id(
         id: int,
         db: Session = Depends(get_db)
@@ -125,7 +124,10 @@ async def search_author_by_id(
                 detail=f"Tác giả không tồn tại"
             )
         
-        return author
+        return JSONResponse(
+            status_code=status.HTTP_200_OK,
+            content={"author": author}
+        )
     
     except SQLAlchemyError as e:
         raise HTTPException(
@@ -135,7 +137,8 @@ async def search_author_by_id(
 
 
 @router.post("/search",
-            response_model=AuthorPageableResponse)
+            response_model=AuthorPageableResponse, 
+            status_code=status.HTTP_200_OK)
 async def search_authors(
         info: AuthorSearch,
         page: int,
@@ -214,8 +217,7 @@ async def create_author(
         )
 
 
-@router.post("/import", 
-             status_code=status.HTTP_201_CREATED)
+@router.post("/import")
 async def import_author(
         file: UploadFile,
         db: Session = Depends(get_db), 
@@ -257,6 +259,7 @@ async def import_author(
         )
     
     existing_author_names = {a.name for a in db.query(Author).all()}
+    existing_author_dates = {a.birthdate for a in db.query(Author).all()}
     errors = []
     list_authors = []
     
@@ -266,7 +269,8 @@ async def import_author(
             errors.append({"Dòng": index + 2, "Lỗi": "Tên tác giả không được để trống."})
             continue
         
-        if name in existing_author_names:
+        date = row.get("birthdate")
+        if name in existing_author_names and date and date in existing_author_dates:
             errors.append({"Dòng": index + 2, "Lỗi": f"Tác giả '{name}' đã tồn tại."})
             continue
         
