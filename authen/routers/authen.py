@@ -23,13 +23,25 @@ async def login_user(
         db: Session = Depends(get_db)
     ):
     
-    user = db.query(User).filter(User.username == user_credentials.username).first()
-
-    if not user:
+    query = (
+        db.query(
+            User,
+            func.coalesce(func.array_agg(Role.name).filter(Role.name != None), '{}').label("roles")
+        )
+        .outerjoin(UserRole, User.id == UserRole.user_id)
+        .outerjoin(Role, UserRole.role_id == Role.id)
+        .filter(User.username == user_credentials.username)
+        .group_by(User.id)
+    )
+    
+    user_result = query.first()
+    if not user_result:
         raise HTTPException(
             status_code=status.HTTP_406_NOT_ACCEPTABLE,
             detail="Invalid Credentials!"
         )
+
+    user = user_result[0]
     if not verify_password(user_credentials.password, user.auth_credential.hashed_password):
         raise HTTPException(
             status_code=status.HTTP_406_NOT_ACCEPTABLE,
@@ -38,25 +50,14 @@ async def login_user(
     
     access_token, expire = create_access_token(data={"user_id": user.id})
 
-    query = (
-        db.query(
-            User,
-            func.coalesce(func.array_agg(Role.name).filter(Role.name != None), '{}').label("roles")
-        )
-        .outerjoin(UserRole, User.id == UserRole.user_id)
-        .outerjoin(Role, UserRole.role_id == Role.id)
-        .group_by(User.id)
-    )
-    user = query.first()
-
     user_res = UserLoginResponse(
-        id=user[0].id,
-        full_name=user[0].full_name,
-        is_active=user[0].is_active,
-        created_at=user[0].created_at,
-        roles=user[1]
+        id=user.id,
+        full_name=user.full_name,
+        is_active=user.is_active,
+        created_at=user.created_at,
+        roles=user_result[1]
     )
-
+    
     return {"access_token": access_token,
             "token_type": "bearer", 
             "user": user_res, 
