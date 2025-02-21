@@ -1,6 +1,7 @@
 from io import BytesIO
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
 from fastapi.responses import JSONResponse, StreamingResponse
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from configs.authentication import get_current_user
@@ -142,13 +143,17 @@ async def search_publisher(
     ):
 
     try:
+        print(info.dict())
+
         publishers = db.query(Publisher)
-        if info.name:
-            publishers = publishers.filter(Publisher.name.like(f"%{info.name}%"))
-        if info.phone_number:
-            publishers = publishers.filter(Publisher.phone_number.like(f"%{info.phone_number}%"))
-        if info.address:
-            publishers = publishers.filter(Publisher.address.like(f"%{info.address}%"))
+        if info.name and info.name.strip():
+            publishers = publishers.filter(func.lower(Publisher.name).like(f"%{info.name.strip().lower()}%"))
+        if info.email and info.email.strip():
+            publishers = publishers.filter(func.lower(Publisher.email).like(f"%{info.email.strip().lower()}%"))
+        if info.address and info.address.strip():
+            publishers = publishers.filter(func.lower(Publisher.address).like(f"%{info.address.strip().lower()}%"))
+        if info.phone_number and info.phone_number.strip():
+            publishers = publishers.filter(Publisher.phone_number.like(f"%{info.phone_number.strip()}%"))
 
         total_count = publishers.count()
         total_pages = math.ceil(total_count / page_size)

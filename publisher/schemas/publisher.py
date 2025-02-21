@@ -59,3 +59,18 @@ class DeleteMany(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+class PublisherName(BaseModel):
+    name: str
+    id: int
+
+    class Config:
+        from_attributes = True
+
+
+class ListPublisherNameResponse(BaseModel):
+    publishers: list[PublisherName]
+
+    class Config:
+        from_attributes = True
