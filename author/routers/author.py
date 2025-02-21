@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, UploadFile, status
 from fastapi.responses import JSONResponse, StreamingResponse
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
+from sqlalchemy import func
 from configs.authentication import get_current_user
 from configs.database import get_db
 from author.models.author import Author
@@ -107,6 +108,28 @@ async def export_authors(
             status_code=500, 
             detail=f"Lỗi xuất dữ liệu: {str(e)}"
         )
+    
+
+@router.get("/name", 
+            response_model=ListAuthorNameResponse,
+            status_code=status.HTTP_200_OK)
+async def get_author_names(
+        db: Session = Depends(get_db), 
+    ):
+
+    try:
+        authors = db.query(Author).all()
+        authors_name_res = ListAuthorNameResponse(
+            authors=[AuthorName(id=a.id, name=a.name) for a in authors]
+        )
+
+        return authors_name_res
+    
+    except SQLAlchemyError as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Lỗi cơ sở dữ liệu: {str(e)}"
+        )
 
 
 @router.get("/{id}",
@@ -148,16 +171,16 @@ async def search_authors(
 
     try:
         authors = db.query(Author)
-        if info.name:
-            authors = authors.filter(Author.name.like(f"%{info.name}%"))
+        if info.name and info.name.strip():
+            authors = authors.filter(func.lower(Author.name).like(f"%{info.name.strip().lower()}%"))
         if info.birthdate:
             authors = authors.filter(Author.birthdate == info.birthdate)
-        if info.address:
-            authors = authors.filter(Author.address.like(f"%{info.address}%"))
-        if info.pen_name:
-            authors = authors.filter(Author.pen_name.like(f"%{info.pen_name}%"))
-        if info.biography:
-            authors = authors.filter(Author.biography.like(f"%{info.biography}%"))
+        if info.address and info.address.strip():
+            authors = authors.filter(func.lower(Author.address).like(f"%{info.address.strip().lower()}%"))
+        if info.pen_name and info.pen_name.strip():
+            authors = authors.filter(func.lower(Author.pen_name).like(f"%{info.pen_name.strip().lower()}%"))
+        if info.biography and info.biography.strip():
+            authors = authors.filter(func.lower(Author.biography).like(f"%{info.biography.strip().lower()}%"))
 
         total_count = authors.count()
         total_pages = math.ceil(total_count / page_size)

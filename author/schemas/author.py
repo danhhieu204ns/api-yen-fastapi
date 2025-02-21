@@ -68,3 +68,18 @@ class AuthorDelete(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+class AuthorName(BaseModel):
+    name: str
+    id: int
+
+    class Config:
+        from_attributes = True
+
+
+class ListAuthorNameResponse(BaseModel):
+    authors: list[AuthorName]
+
+    class Config:
+        from_attributes = True
