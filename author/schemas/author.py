@@ -52,8 +52,12 @@ class AuthorImport(BaseModel):
         from_attributes = True
 
 
-class AuthorSearch(AuthorBase):
+class AuthorSearch(BaseModel):
     name: Optional[str] = None
+    birthdate: Optional[str] = None
+    address: Optional[str] = None
+    pen_name: Optional[str] = None
+    biography: Optional[str] = None
 
     class Config:
         from_attributes = True
@@ -61,6 +65,21 @@ class AuthorSearch(AuthorBase):
 
 class AuthorDelete(BaseModel):
     list_id: list[int]
+
+    class Config:
+        from_attributes = True
+
+
+class AuthorName(BaseModel):
+    name: str
+    id: int
+
+    class Config:
+        from_attributes = True
+
+
+class ListAuthorNameResponse(BaseModel):
+    authors: list[AuthorName]
 
     class Config:
         from_attributes = True

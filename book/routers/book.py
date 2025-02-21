@@ -1,18 +1,17 @@
 from io import BytesIO
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, StreamingResponse
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from author.models.author import Author
 from category.models.category import Category
+from publisher.models.publisher import Publisher
 from configs.authentication import get_current_user
 from configs.database import get_db
 from book.models.book import Book
 from book.schemas.book import *
 import math
 import pandas as pd
-
-from publisher.models.publisher import Publisher
 
 
 router = APIRouter(
@@ -70,6 +69,49 @@ async def get_genres_pageable(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Lỗi cơ sở dữ liệu: {str(e)}"
         )
+        
+
+@router.get("/export",
+            status_code=status.HTTP_200_OK)
+async def export_books(
+        db: Session = Depends(get_db), 
+        current_user = Depends(get_current_user)
+    ):
+
+    try:
+        books = db.query(Book).all()
+        df = pd.DataFrame([{
+            "Tên sách": book.name,
+            "Trạng thái": book.status,
+            "Tóm tắt": book.summary,
+            "Số trang": book.pages,
+            "Ngôn ngữ": book.language,
+            "Tác giả": book.author.name if book.author else "Không có tác giả",
+            "Nhà xuất bản": book.publisher.name if book.publisher else "Không có NXB",
+            "Thể loại": book.category.name if book.category else "Không có thể loại"
+        } for book in books])
+
+        output = BytesIO()
+        writer = pd.ExcelWriter(output, engine='xlsxwriter')
+        df.to_excel(writer, sheet_name='Books', index=False)
+        writer.close()
+        output.seek(0)
+
+        headers = {
+            'Content-Disposition': 'attachment; filename="authors.xlsx"'
+        }
+        
+        return StreamingResponse(
+            output,
+            headers=headers,
+            media_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        )
+    
+    except SQLAlchemyError as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Lỗi cơ sở dữ liệu: {str(e)}"
+        )
 
 
 @router.get("/{id}",
@@ -88,7 +130,10 @@ async def get_book_by_id(
                 detail="Sách không tồn tại"
             )
         
-        return book
+        return JSONResponse(
+            status_code=status.HTTP_200_OK,
+            content={"book": book}
+        )
     
     except SQLAlchemyError as e:
         raise HTTPException(
@@ -98,31 +143,30 @@ async def get_book_by_id(
 
 
 @router.post("/search",
-            response_model=ListBookResponse, 
+            response_model=BookPageableResponse, 
             status_code=status.HTTP_200_OK)
 async def search_books(
         info: BookSearch,
+        page: int,
+        page_size: int,
         db: Session = Depends(get_db)
     ):
 
     try:
         books = db.query(Book)
         if info.name:
-            books = books.filter(Book.name.like(f"%{info.name}%"))
-        if info.status:
-            books = books.filter(Book.status == info.status)
-        if info.summary:
-            books = books.filter(Book.summary.like(f"%{info.summary}%"))
-        if info.pages:
-            books = books.filter(Book.pages == info.pages)
-        if info.language:
-            books = books.filter(Book.language == info.language)
+            books = books.filter(Book.name.like(f"%{info.name.strip().lower()}%"))
 
-        books = books.all()
+        total_data = books.count()
+        total_pages = math.ceil(total_data / page_size)
+        offset = (page - 1) * page_size
+
+        books = books.offset(offset).limit(page_size).all()    
         
-        return ListBookResponse(
+        return BookPageableResponse(
             books=books, 
-            total_data=len(books)
+            total_data=len(books), 
+            total_pages=total_pages
         )
     
     except SQLAlchemyError as e:
@@ -238,18 +282,6 @@ async def import_books(
         author_id = author_map.get(row.get("author_name"))
         publisher_id = publisher_map.get(row.get("publisher_name"))
         category_id = category_map.get(row.get("category_name"))
-        
-        if not author_id:
-            errors.append({"Dòng": index + 2, "Lỗi": f"Tác giả '{row.get('author_name')}' không tồn tại."})
-            continue
-        
-        if not publisher_id:
-            errors.append({"Dòng": index + 2, "Lỗi": f"Nhà xuất bản '{row.get('publisher_name')}' không tồn tại."})
-            continue
-        
-        if not category_id:
-            errors.append({"Dòng": index + 2, "Lỗi": f"Thể loại '{row.get('category_name')}' không tồn tại."})
-            continue
         
         status = None if pd.isna(row.get("status")) else row.get("status")
         summary = None if pd.isna(row.get("summary")) else row.get("summary")
