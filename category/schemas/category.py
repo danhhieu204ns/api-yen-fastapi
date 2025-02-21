@@ -56,3 +56,19 @@ class CategoryDelete(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+
+class CategoryName(BaseModel):
+    name: str
+    id: int
+
+    class Config:
+        from_attributes = True
+
+
+class ListCategoryNameResponse(BaseModel):
+    categories: list[CategoryName]
+
+    class Config:
+        from_attributes = True

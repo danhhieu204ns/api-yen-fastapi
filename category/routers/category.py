@@ -105,6 +105,28 @@ async def export_categories(db: Session = Depends(get_db)):
         )
     
 
+@router.get("/name", 
+            response_model=ListCategoryNameResponse,
+            status_code=status.HTTP_200_OK)
+async def get_category_names(
+        db: Session = Depends(get_db), 
+    ):
+
+    try:
+        categories = db.query(Category).all()
+        category_names = [CategoryName(name=c.name, id=c.id) for c in categories]
+
+        return ListCategoryNameResponse(
+            categories=category_names
+        )
+    
+    except SQLAlchemyError as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Lỗi cơ sở dữ liệu: {str(e)}"
+        )
+    
+
 @router.get("/{id}",
             response_model=CategoryResponse,
             status_code=status.HTTP_200_OK)
@@ -144,11 +166,11 @@ async def search_category(
     try:
         category = db.query(Category)
         if info.name:
-            category = category.filter(Category.name.like(f"%{info.name}%"))
+            category = category.filter(Category.name.like(f"%{info.name.strip().lower()}%"))
         if info.age_limit:
             category = category.filter(Category.age_limit == info.age_limit)
         if info.description:
-            category = category.filter(Category.description.like(f"%{info.description}%"))
+            category = category.filter(Category.description.like(f"%{info.description.strip().lower()}%"))
 
         total_count = category.count()
         total_pages = math.ceil(total_count / page_size)

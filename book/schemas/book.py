@@ -3,6 +3,30 @@ from pydantic import BaseModel
 from typing import Optional
 
 
+class AuthorBase(BaseModel):
+    name: str
+    id: int
+
+    class Config:
+        from_attributes = True
+
+
+class PublisherBase(BaseModel):
+    name: str
+    id: int
+
+    class Config:
+        from_attributes = True
+
+
+class CategoryBase(BaseModel):
+    name: str
+    id: int
+
+    class Config:
+        from_attributes = True
+
+
 class BookBase(BaseModel):
     name: str
     status: Optional[str] = None
@@ -12,15 +36,24 @@ class BookBase(BaseModel):
 
 
 class BookCreate(BookBase):
-    pass
+    name: Optional[str] = None
+    author_id: Optional[int] = None
+    publisher_id: Optional[int] = None
+    category_id: Optional[int] = None
 
 
 class BookUpdate(BookBase):
-    pass
+    name: Optional[str] = None
+    author_id: Optional[int] = None
+    publisher_id: Optional[int] = None
+    category_id: Optional[int] = None
 
 
 class BookResponse(BookBase):
     id: int
+    author: Optional[AuthorBase] = None
+    publisher: Optional[PublisherBase] = None
+    category: Optional[CategoryBase] = None
     created_at: datetime
     
     class Config:
