@@ -78,11 +78,12 @@ async def export_publishers(
     try:
         publishers = db.query(Publisher).all()
         df = pd.DataFrame([{
+            "Số thứ tự": i + 1,
             "Tên nhà xuất bản": p.name,
             "Email": p.email,
             "Địa chỉ": p.address,
             "Số điện thoại": p.phone_number
-        } for p in publishers])
+        } for i, p in enumerate(publishers)])
         
         output = BytesIO()
         writer = pd.ExcelWriter(output, engine='xlsxwriter')
