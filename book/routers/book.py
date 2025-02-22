@@ -81,6 +81,7 @@ async def export_books(
     try:
         books = db.query(Book).all()
         df = pd.DataFrame([{
+            "Số thứ tự": index + 1,
             "Tên sách": book.name,
             "Trạng thái": book.status,
             "Tóm tắt": book.summary,
@@ -89,7 +90,7 @@ async def export_books(
             "Tác giả": book.author.name if book.author else "Không có tác giả",
             "Nhà xuất bản": book.publisher.name if book.publisher else "Không có NXB",
             "Thể loại": book.category.name if book.category else "Không có thể loại"
-        } for book in books])
+        } for index, book in enumerate(books)])
 
         output = BytesIO()
         writer = pd.ExcelWriter(output, engine='xlsxwriter')
