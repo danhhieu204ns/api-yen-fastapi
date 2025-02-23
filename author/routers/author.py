@@ -80,12 +80,13 @@ async def export_authors(
     try:
         authors = db.query(Author).all()
         df = pd.DataFrame([{
+            "Số thứ tự": i + 1,
             "Tên tác giả": a.name,
             "Ngày sinh": a.birthdate,
             "Địa chỉ": a.address,
             "Bút danh": a.pen_name,
             "Tiểu sử": a.biography
-        } for a in authors])
+        } for i, a in enumerate(authors)])
         
         output = BytesIO()
         writer = pd.ExcelWriter(output, engine='xlsxwriter')

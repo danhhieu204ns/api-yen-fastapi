@@ -70,12 +70,30 @@ class UserPageableResponse(BaseModel):
 
 
 class UserSearch(BaseModel):
+    username: Optional[str] = None
     full_name: Optional[str] = None
+    phone_number: Optional[str] = None
+    address: Optional[str] = None
+    role: Optional[str] = None
+
+    class Config:
+        from_attributes = True
+
+    
+class UserDelete(BaseModel):
+    list_id: list[int]
+
+    class Config:
+        from_attributes = True
+
+
+class UserCreateAccount(BaseModel):
+    full_name: str
+    username: str
     email: Optional[str] = None
     phone_number: Optional[str] = None
     birthdate: Optional[date] = None
     address: Optional[str] = None
-    is_active: Optional[bool] = None
 
     class Config:
         from_attributes = True
