@@ -72,11 +72,11 @@ async def export_categories(db: Session = Depends(get_db)):
     try:
         categories = db.query(Category).all()
         df = pd.DataFrame([{
-            "id": c.id,
-            "name": c.name,
-            "age_limit": c.age_limit,
-            "description": c.description
-        } for c in categories])
+            "Số thứ tự": i + 1,
+            "Tên danh mục": c.name,
+            "Độ tuổi": c.age_limit,
+            "Mô tả": c.description
+        } for i, c in enumerate(categories)])
 
         # Kiểm tra nếu không có dữ liệu
         if df.empty:
