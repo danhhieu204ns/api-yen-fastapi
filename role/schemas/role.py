@@ -49,5 +49,26 @@ class RoleImport(BaseModel):
         from_attributes = True
 
 
+class RoleSearch(BaseModel):
+    name: Optional[str] = None
+    detail: Optional[str] = None
 
+    class Config:
+        from_attributes = True
+
+
+class RoleNameResponse(BaseModel):
+    id: int
+    name: str
+
+    class Config:
+        from_attributes = True
+
+
+class ListRoleNameResponse(BaseModel):
+    roles: list[RoleNameResponse]
+    total_data: int
+
+    class Config:
+        from_attributes = True
         

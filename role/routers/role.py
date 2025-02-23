@@ -5,7 +5,7 @@ from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from configs.authentication import get_current_user
 from configs.database import get_db
 from role.models.role import Role
-from role.schemas.role import ListRoleResponse, RoleResponse, RoleCreate, RoleUpdate, RolePageableResponse
+from role.schemas.role import *
 import math
 
 
@@ -67,6 +67,27 @@ async def get_roles_pageable(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Lỗi cơ sở dữ liệu: {str(e)}"
         )
+    
+
+@router.get("/name",
+            response_model=list[RoleNameResponse], 
+            status_code=status.HTTP_200_OK)
+async def get_roles_name(
+        db: Session = Depends(get_db), 
+        current_user = Depends(get_current_user)
+    ):
+
+    try:
+        roles = db.query(Role).all()
+        roles_name_res = [RoleNameResponse(id=role.id, name=role.name) for role in roles]
+
+        return roles_name_res
+    
+    except SQLAlchemyError as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Lỗi cơ sở dữ liệu: {str(e)}"
+        )
 
 
 @router.get("/{id}", 
@@ -95,23 +116,33 @@ async def get_role_by_id(
         )
 
 
-@router.get("/search/by-name/{name}",
-            response_model=list[RoleResponse])
+@router.post("/search",
+            response_model=RolePageableResponse)
 async def search_roles_by_name(
-        name: str,
+        search: RoleSearch,
+        page: int,
+        page_size: int,
         db: Session = Depends(get_db), 
         current_user = Depends(get_current_user)
     ):
 
     try:
-        roles = db.query(Role).filter(Role.name.like(f"%{name}%")).all()
-        if not roles:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND, 
-                detail=f"Quyền không tồn tại"
-            )
+        roles = db.query(Role)
+        if search.name:
+            roles = roles.filter(Role.name.like(f"%{search.name}%"))
+        if search.detail:
+            roles = roles.filter(Role.detail.like(f"%{search.detail}%"))
 
-        return roles
+        total_count = roles.count()
+        total_pages = math.ceil(total_count / page_size)
+        offset = (page - 1) * page_size
+        roles = roles.offset(offset).limit(page_size).all()
+
+        return RolePageableResponse(
+            roles=roles,
+            total_pages=total_pages,
+            total_data=total_count
+        )
     
     except SQLAlchemyError as e:
         raise HTTPException(
