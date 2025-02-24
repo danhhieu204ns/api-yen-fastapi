@@ -180,7 +180,7 @@ async def create_bookshelf(
         if bookshelf:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Tủ sách đã tồn tại"
+                detail="Tên tủ sách đã tồn tại"
             )
 
         bookshelf = Bookshelf(**new_bookshelf.dict())
@@ -251,11 +251,11 @@ async def import_bookshelfs(
     for index, row in df.iterrows():
         name = row.get("name")
         if not name:
-            errors.append({"Dòng": index + 2, "Lỗi": "Tên kệ sách không được để trống."})
+            errors.append({"Line": index + 2, "Error": "Tên kệ sách không được để trống."})
             continue
         
         if db.query(Bookshelf).filter_by(name=name).first():
-            errors.append({"Dòng": index + 2, "Lỗi": f"Kệ sách '{name}' đã tồn tại."})
+            errors.append({"Line": index + 2, "Error": f"Kệ sách '{name}' đã tồn tại."})
             continue
         
         status = None if pd.isna(row.get("status")) else row.get("status")
