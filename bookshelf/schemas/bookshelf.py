@@ -50,3 +50,18 @@ class BookshelfSearch(BaseModel):
 
 class DeleteMany(BaseModel):
     ids: list[int]
+
+
+class BookshelfNameResponse(BaseModel):
+    id: int
+    name: str
+    
+    class Config:
+        from_attributes = True
+
+
+class ListBookshelfNameResponse(BaseModel):
+    bookshelfs: list[BookshelfNameResponse]
+
+    class Config:
+        from_attributes = True

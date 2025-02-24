@@ -103,6 +103,27 @@ async def export_bookshelfs(
             status_code=500, 
             detail=f"Lỗi xuất dữ liệu: {str(e)}"
         )
+    
+
+@router.get("/name", 
+            response_model=ListBookshelfNameResponse)
+async def get_bookshelf_name(
+        db: Session = Depends(get_db)
+    ):
+
+    try:
+        bookshelfs = db.query(Bookshelf).all()
+        bookshelf_names = [BookshelfNameResponse(id=b.id, name=b.name) for b in bookshelfs]
+
+        return ListBookshelfNameResponse(
+            bookshelfs=bookshelf_names
+        )
+
+    except SQLAlchemyError as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Lỗi cơ sở dữ liệu: {str(e)}"
+        )
 
 
 @router.get("/{id}",

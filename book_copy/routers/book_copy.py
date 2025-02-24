@@ -1,8 +1,8 @@
 from io import BytesIO
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, status
 from fastapi.params import File
-from fastapi.responses import JSONResponse
-from sqlalchemy.orm import Session
+from fastapi.responses import JSONResponse, StreamingResponse
+from sqlalchemy.orm import Session, joinedload
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from book.models.book import Book
 from bookshelf.models.bookshelf import Bookshelf
@@ -15,7 +15,7 @@ import pandas as pd
 
 
 router = APIRouter(
-    prefix="/book-copies",
+    prefix="/book-copy",
     tags=["Book_Copies"],
 )
 
@@ -28,7 +28,14 @@ async def get_book_copies(
     ):
 
     try:
-        book_copies = db.query(BookCopy).all()
+        book_copies = db.query(BookCopy)\
+            .join(Book)\
+            .outerjoin(Bookshelf)\
+            .options(
+                joinedload(BookCopy.book),
+                joinedload(BookCopy.bookshelf)
+            )\
+            .all()
 
         return ListBookCopyResponse(
             book_copies=book_copies, 
@@ -56,17 +63,76 @@ async def get_book_copy_pageable(
         total_pages = math.ceil(total_count / page_size)
         offset = (page - 1) * page_size
 
-        book_copies = db.query(BookCopy).offset(offset).limit(page_size).all()
+        book_copies = db.query(BookCopy)\
+            .join(Book)\
+            .outerjoin(Bookshelf)\
+            .options(
+                joinedload(BookCopy.book),
+                joinedload(BookCopy.bookshelf)
+            )\
+            .offset(offset)\
+            .limit(page_size)\
+            .all()
+            
+        list_book_copies = [BookCopyResponse(
+            id=book_copy.id,
+            book=BookBase(**book_copy.book.__dict__),
+            bookshelf=BookshelfBase(**book_copy.bookshelf.__dict__) if book_copy.bookshelf else None, 
+            status=book_copy.status 
+        ) for book_copy in book_copies]
 
         return BookCopyPageableResponse(
             total_data=total_count,
             total_pages=total_pages,
-            book_copies=book_copies
+            book_copies=list_book_copies
         )
     
     except SQLAlchemyError as e:
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"Lỗi cơ sở dữ liệu: {str(e)}"
+        )
+    
+
+@router.get("/export",
+            status_code=status.HTTP_200_OK)
+async def export_book_copies(
+        db: Session = Depends(get_db)
+    ):
+
+    try:
+        book_copies = db.query(BookCopy)\
+            .join(Book)\
+            .outerjoin(Bookshelf)\
+            .options(
+                joinedload(BookCopy.book),
+                joinedload(BookCopy.bookshelf)
+            )\
+            .all()
+
+        df = pd.DataFrame([{
+            "Số thứ tự": index + 1,
+            "Tên sách": book_copy.book.name,
+            "Tên kệ sách": book_copy.bookshelf.name if book_copy.bookshelf else None,
+            "Trạng thái": book_copy.status
+        } for index, book_copy in enumerate(book_copies)])
+
+        output = BytesIO()
+        writer = pd.ExcelWriter(output, engine="xlsxwriter")
+        df.to_excel(writer, sheet_name="Book_copy", index=False)
+        writer.close()
+        output.seek(0)
+
+        headers = {
+            'Content-Disposition': 'attachment; filename="book_copies.xlsx"',
+            'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        }
+
+        return StreamingResponse(output, headers=headers)
+
+    except SQLAlchemyError as e:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
             detail=f"Lỗi cơ sở dữ liệu: {str(e)}"
         )
 
@@ -101,17 +167,27 @@ async def get_book_copy_by_id(
             status_code=status.HTTP_200_OK)
 async def search_book_copy(
         search: BookCopySearch,
+        page: int = 1,
+        page_size: int = 10,
         db: Session = Depends(get_db)
     ):
 
     try:
-        book_copies = db.query(BookCopy).filter(
-            BookCopy.status.ilike(f"%{search.status}%")
-        ).all()
+        book_copies = db.query(BookCopy)
+
+        if search.status:
+            book_copies = book_copies.filter(BookCopy.status == search.status)
+
+        total_count = book_copies.count()
+        total_pages = math.ceil(total_count / page_size)
+        offset = (page - 1) * page_size
+
+        book_copies = book_copies.offset(offset).limit(page_size).all()
 
         return ListBookCopyResponse(
             book_copies=book_copies, 
-            total_data=len(book_copies)
+            total_data=total_count,
+            total_pages=total_pages
         )
     
     except SQLAlchemyError as e:
@@ -154,9 +230,7 @@ async def create_book_copy(
         )
 
 
-@router.post("/import",
-            response_model=list[BookCopyResponse],
-            status_code=status.HTTP_201_CREATED)
+@router.post("/import")
 async def import_book_copies(
         file: UploadFile = File(...),
         db: Session = Depends(get_db),
@@ -166,7 +240,7 @@ async def import_book_copies(
     COLUMN_MAPPING = {
         "Trạng thái": "status",
         "Tên sách": "book_name",
-        "Tên kệ": "bookshelf_name"
+        "Tên kệ sách": "bookshelf_name"
     }
     
     if file.content_type not in ["application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "application/vnd.ms-excel"]:
@@ -204,7 +278,7 @@ async def import_book_copies(
         status = row.get("status", "AVAILABLE")
         
         if not book_id:
-            errors.append({"Dòng": index + 2, "Lỗi": f"Sách '{row.get('book_name')}' không tồn tại."})
+            errors.append({"Line": index + 2, "Error": f"Sách '{row.get('book_name')}' không tồn tại."})
             continue
         
         book_copy = BookCopy(
@@ -244,7 +318,6 @@ async def import_book_copies(
 
 
 @router.put("/update/{id}",
-            response_model=BookCopyResponse,
             status_code=status.HTTP_200_OK)
 async def update_book_copy(
         id: int,

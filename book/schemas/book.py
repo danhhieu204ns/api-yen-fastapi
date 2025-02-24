@@ -84,3 +84,19 @@ class BookSearch(BookBase):
 
 class DeleteMany(BaseModel):
     ids: list[int]
+
+
+class BookNameResponse(BaseModel):
+    name: str
+    id: int
+
+    class Config:
+        from_attributes = True
+
+
+class ListBookNameResponse(BaseModel):
+    books: list[BookNameResponse]
+
+    class Config:
+        from_attributes = True
+        

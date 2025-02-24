@@ -113,6 +113,30 @@ async def export_books(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Lỗi cơ sở dữ liệu: {str(e)}"
         )
+    
+
+@router.get("/name", 
+            response_model=ListBookNameResponse,
+            status_code=status.HTTP_200_OK)
+async def get_all_books_by_name(
+        db: Session = Depends(get_db), 
+        current_user = Depends(get_current_user)
+    ):
+
+    try:
+        books = db.query(Book).all()
+        book_names = [BookNameResponse(id=b.id, name=b.name) for b in books]
+
+        return ListBookNameResponse(
+            books=book_names
+        )
+
+    except SQLAlchemyError as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Lỗi cơ sở dữ liệu: {str(e)}"
+        )
+
 
 
 @router.get("/{id}",
