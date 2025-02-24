@@ -1,31 +1,41 @@
 from datetime import date, datetime
 from pydantic import BaseModel
-from typing import Optional
+from typing import List, Optional
+
+from book.schemas.book import BookBase
+from bookshelf.schemas.bookshelf import BookshelfBase
 
 
 class BookCopyBase(BaseModel):
-    status: Optional[str] = None
-
-
-class BookCopyCreate(BookCopyBase):
+    status: str
     book_id: int
     bookshelf_id: Optional[int] = None
 
+    class Config:
+        from_attributes = True
 
-class BookCopyUpdate(BookCopyBase):
+
+class BookCopyCreate(BookCopyBase):
     pass
 
 
-class BookCopyResponse(BookCopyBase):
+class BookCopyUpdate(BaseModel):
+    status: Optional[str] = None
+    bookshelf_id: Optional[int] = None
+
+
+class BookCopyResponse(BaseModel):
     id: int
-    created_at: datetime
-    
+    book: BookBase
+    bookshelf: Optional[BookshelfBase] = None
+    status: str
+
     class Config:
         from_attributes = True
 
 
 class ListBookCopyResponse(BaseModel):
-    book_copies: list[BookCopyResponse]
+    book_copies: List[BookCopyResponse]
     total_data: int
 
     class Config:
@@ -33,10 +43,9 @@ class ListBookCopyResponse(BaseModel):
 
 
 class BookCopyPageableResponse(BaseModel):
-    book_copies: list[BookCopyResponse]
-
-    total_pages: int
+    book_copies: List[BookCopyResponse]
     total_data: int
+    total_pages: Optional[int] = None
 
     class Config:
         from_attributes = True
@@ -47,4 +56,4 @@ class BookCopySearch(BaseModel):
 
 
 class DeleteMany(BaseModel):
-    ids: list[int]
+    ids: List[int]
