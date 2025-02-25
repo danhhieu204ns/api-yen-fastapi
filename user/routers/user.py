@@ -149,7 +149,7 @@ async def export_user(
         df = pd.DataFrame([{
             "Số thứ tự": index + 1,
             "Họ và Tên": user[0].full_name,
-            "Username": user[0].username,
+            "Tên người dùng": user[0].username,
             "Email": user[0].email,
             "Số điện thoại": user[0].phone_number,
             "Ngày sinh": user[0].birthdate,
@@ -511,6 +511,10 @@ async def import_user(
 
     for index, row in df.iterrows():
         username = row.get("username")
+
+        if not username or username == "":
+            errors.append({"row": index + 2, "message": "Tên đăng nhập không được để trống."})
+            continue
         if username in existing_usernames:
             errors.append({"row": index + 2, "message": f"Tài khoản '{username}' đã tồn tại."})
             continue
