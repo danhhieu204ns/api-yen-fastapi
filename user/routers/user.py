@@ -127,6 +127,53 @@ async def get_user_pageable(
         )
     
 
+@router.get("/full-name")
+async def get_user_full_name(
+        db: Session = Depends(get_db), 
+        current_user = Depends(get_current_user)
+    ):
+    
+    try:
+        users = db.query(User).all()
+        user_full_names = [UserFullNameResponse(id=u.id, full_name=u.full_name) for u in users]
+
+        return ListUserFullNameResponse(
+            users=user_full_names
+        )
+    
+    except SQLAlchemyError as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=str(e)
+        )
+    
+
+@router.get("/admin-name")
+async def get_user_admin_name(
+        db: Session = Depends(get_db),
+        current_user = Depends(get_current_user)
+    ):
+
+    try:
+        users = db.query(User)\
+            .join(UserRole)\
+            .join(Role)\
+            .filter(Role.name == "admin")\
+            .all()
+            
+        user_admin_names = [UserFullNameResponse(id=u.id, full_name=u.full_name) for u in users]
+
+        return ListUserFullNameResponse(
+            users=user_admin_names
+        )
+
+    except SQLAlchemyError as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=str(e)
+        )
+    
+
 @router.get("/export",
             status_code=status.HTTP_200_OK)
 async def export_user(
