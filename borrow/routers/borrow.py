@@ -2,18 +2,20 @@ from io import BytesIO
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, status
 from fastapi.params import File
 from fastapi.responses import JSONResponse
-from sqlalchemy.orm import Session
-from sqlalchemy.exc import IntegrityError, SQLAlchemyError
+from sqlalchemy.orm import Session, aliased
+from sqlalchemy.exc import SQLAlchemyError
 from book.models.book import Book
 from book_copy.models.book_copy import BookCopy
 from configs.authentication import get_current_user
 from configs.database import get_db
 from borrow.models.borrow import Borrow
 from borrow.schemas.borrow import *
+from role.models.role import Role
+from user.models.user import User
 import math
 import pandas as pd
 
-from user.models.user import User
+from user_role.models.user_role import UserRole
 
 
 router = APIRouter(
@@ -31,7 +33,60 @@ async def get_borrows(
     ):
 
     try:
-        borrows = db.query(Borrow).all()
+        # Create aliases for User table to distinguish between user and staff
+        UserAlias = aliased(User, name="borrower")
+        StaffAlias = aliased(User, name="staff")
+        
+        borrows_query = db.query(
+            Borrow,
+            BookCopy,
+            Book,
+            UserAlias,
+            StaffAlias
+        ).join(
+            BookCopy, Borrow.book_copy_id == BookCopy.id
+        ).join(
+            Book, BookCopy.book_id == Book.id
+        ).join(
+            UserAlias, Borrow.user_id == UserAlias.id
+        ).outerjoin(
+            StaffAlias, Borrow.staff_id == StaffAlias.id
+        )
+        
+        borrows_data = borrows_query.all()
+        
+        borrows = []
+        for borrow, book_copy, book, user, staff in borrows_data:
+            borrow_response = {
+                "id": borrow.id,
+                "duration": borrow.duration,
+                "created_at": borrow.created_at,
+                "status": borrow.status,
+                "book_copy_id": borrow.book_copy_id,
+                "user_id": borrow.user_id,
+                "staff_id": borrow.staff_id,
+                "user": {
+                    "id": user.id,
+                    "full_name": user.full_name,
+                    "username": user.username,
+                    "phone_number": user.phone_number
+                },
+                "book_copy": {
+                    "id": book_copy.id,
+                    "status": book_copy.status,
+                    "book": {
+                        "id": book.id,
+                        "name": book.name
+                    }
+                },
+                "staff": {
+                    "id": staff.id,
+                    "full_name": staff.full_name,
+                    "username": staff.username,
+                    "phone_number": staff.phone_number
+                } if staff else None
+            }
+            borrows.append(borrow_response)
 
         return ListBorrowResponse(
             borrows=borrows,
@@ -56,11 +111,64 @@ async def get_borrows_pageable(
     ):
 
     try:
-        total_count = db.query(Borrow).count()
+        # Create aliases for User table to distinguish between user and staff
+        UserAlias = aliased(User, name="borrower")
+        StaffAlias = aliased(User, name="staff")
+        
+        base_query = db.query(
+            Borrow,
+            BookCopy,
+            Book,
+            UserAlias,
+            StaffAlias
+        ).join(
+            BookCopy, Borrow.book_copy_id == BookCopy.id
+        ).join(
+            Book, BookCopy.book_id == Book.id
+        ).join(
+            UserAlias, Borrow.user_id == UserAlias.id
+        ).outerjoin(
+            StaffAlias, Borrow.staff_id == StaffAlias.id
+        )
+        
+        total_count = base_query.count()
         total_pages = math.ceil(total_count / page_size)
         offset = (page - 1) * page_size
 
-        borrows = db.query(Borrow).offset(offset).limit(page_size).all()
+        borrows_data = base_query.offset(offset).limit(page_size).all()
+        
+        borrows = []
+        for borrow, book_copy, book, user, staff in borrows_data:
+            borrow_response = {
+                "id": borrow.id,
+                "duration": borrow.duration,
+                "created_at": borrow.created_at,
+                "status": borrow.status,
+                "book_copy_id": borrow.book_copy_id,
+                "user_id": borrow.user_id,
+                "staff_id": borrow.staff_id,
+                "user": {
+                    "id": user.id,
+                    "full_name": user.full_name,
+                    "username": user.username,
+                    "phone_number": user.phone_number
+                },
+                "book_copy": {
+                    "id": book_copy.id,
+                    "status": book_copy.status,
+                    "book": {
+                        "id": book.id,
+                        "name": book.name
+                    }
+                },
+                "staff": {
+                    "id": staff.id,
+                    "full_name": staff.full_name,
+                    "username": staff.username,
+                    "phone_number": staff.phone_number
+                } if staff else None
+            }
+            borrows.append(borrow_response)
 
         return BorrowPageableResponse(
             total_data=total_count,
@@ -85,15 +193,65 @@ async def get_borrow_by_id(
     ):
 
     try:
-        borrow = db.query(Borrow).filter(Borrow.id == id).first()
+        # Create aliases for User table
+        UserAlias = aliased(User, name="borrower")
+        StaffAlias = aliased(User, name="staff")
+        
+        borrow_data = db.query(
+            Borrow,
+            BookCopy,
+            Book,
+            UserAlias,
+            StaffAlias
+        ).join(
+            BookCopy, Borrow.book_copy_id == BookCopy.id
+        ).join(
+            Book, BookCopy.book_id == Book.id
+        ).join(
+            UserAlias, Borrow.user_id == UserAlias.id
+        ).outerjoin(
+            StaffAlias, Borrow.staff_id == StaffAlias.id
+        ).filter(Borrow.id == id).first()
 
-        if not borrow:
+        if not borrow_data:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="Phiếu mượn không tồn tại"
             )
         
-        return borrow
+        borrow, book_copy, book, user, staff = borrow_data
+        
+        borrow_response = {
+            "id": borrow.id,
+            "duration": borrow.duration,
+            "created_at": borrow.created_at,
+            "status": borrow.status,
+            "book_copy_id": borrow.book_copy_id,
+            "user_id": borrow.user_id,
+            "staff_id": borrow.staff_id,
+            "user": {
+                "id": user.id,
+                "full_name": user.full_name,
+                "username": user.username,
+                "phone_number": user.phone_number
+            },
+            "book_copy": {
+                "id": book_copy.id,
+                "status": book_copy.status,
+                "book": {
+                    "id": book.id,
+                    "name": book.name
+                }
+            },
+            "staff": {
+                "id": staff.id,
+                "full_name": staff.full_name,
+                "username": staff.username,
+                "phone_number": staff.phone_number
+            } if staff else None
+        }
+        
+        return borrow_response
     
     except SQLAlchemyError as e:
         raise HTTPException(
@@ -103,32 +261,91 @@ async def get_borrow_by_id(
     
 
 @router.post("/search",
-             response_model=ListBorrowResponse,
+             response_model=BorrowPageableResponse,
              status_code=status.HTTP_200_OK)
 async def search_borrows(
         search_borrow: BorrowSearch,
+        page: int = 1,
+        page_size: int = 10,
         db: Session = Depends(get_db),
         current_user = Depends(get_current_user)
     ):
 
     try:
-        borrows = db.query(Borrow)
+        # Create aliases for User table
+        UserAlias = aliased(User, name="borrower")
+        StaffAlias = aliased(User, name="staff")
+        
+        base_query = db.query(
+            Borrow,
+            BookCopy,
+            Book,
+            UserAlias,
+            StaffAlias
+        ).join(
+            BookCopy, Borrow.book_copy_id == BookCopy.id
+        ).join(
+            Book, BookCopy.book_id == Book.id
+        ).join(
+            UserAlias, Borrow.user_id == UserAlias.id
+        ).outerjoin(
+            StaffAlias, Borrow.staff_id == StaffAlias.id
+        )
+        
         if search_borrow.duration:
-            borrows = borrows.filter(Borrow.duration == search_borrow.duration)
+            base_query = base_query.filter(Borrow.duration == search_borrow.duration)
         if search_borrow.status:
-            borrows = borrows.filter(Borrow.status == search_borrow.status)
+            base_query = base_query.filter(Borrow.status == search_borrow.status)
         if search_borrow.book_copy_id:
-            borrows = borrows.filter(Borrow.book_copy_id == search_borrow.book_copy_id)
+            base_query = base_query.filter(Borrow.book_copy_id == search_borrow.book_copy_id)
         if search_borrow.user_id:
-            borrows = borrows.filter(Borrow.user_id == search_borrow.user_id)
+            base_query = base_query.filter(Borrow.user_id == search_borrow.user_id)
         if search_borrow.staff_id:
-            borrows = borrows.filter(Borrow.staff_id == search_borrow.staff_id)
+            base_query = base_query.filter(Borrow.staff_id == search_borrow.staff_id)
 
-        borrows = borrows.all()
+        total_count = base_query.count()
+        total_pages = math.ceil(total_count / page_size)
+        offset = (page - 1) * page_size
 
-        return ListBorrowResponse(
+        borrows_data = base_query.offset(offset).limit(page_size).all()
+        
+        borrows = []
+        for borrow, book_copy, book, user, staff in borrows_data:
+            borrow_response = {
+                "id": borrow.id,
+                "duration": borrow.duration,
+                "created_at": borrow.created_at,
+                "status": borrow.status,
+                "book_copy_id": borrow.book_copy_id,
+                "user_id": borrow.user_id,
+                "staff_id": borrow.staff_id,
+                "user": {
+                    "id": user.id,
+                    "full_name": user.full_name,
+                    "username": user.username,
+                    "phone_number": user.phone_number
+                },
+                "book_copy": {
+                    "id": book_copy.id,
+                    "status": book_copy.status,
+                    "book": {
+                        "id": book.id,
+                        "name": book.name
+                    }
+                },
+                "staff": {
+                    "id": staff.id,
+                    "full_name": staff.full_name,
+                    "username": staff.username,
+                    "phone_number": staff.phone_number
+                } if staff else None
+            }
+            borrows.append(borrow_response)
+
+        return BorrowPageableResponse(
             borrows=borrows,
-            total_data=len(borrows)
+            total_data=total_count,
+            total_pages=total_pages
         )
     
     except SQLAlchemyError as e:
@@ -139,7 +356,6 @@ async def search_borrows(
 
 
 @router.post("/create",
-            response_model=BorrowResponse,
             status_code=status.HTTP_201_CREATED)
 async def create_borrow(
         new_borrow: BorrowCreate,
@@ -149,28 +365,33 @@ async def create_borrow(
 
     try:
 
-        if not db.query(BookCopy).filter(BookCopy.id == new_borrow.book_copy_id).first():
+        if not db.query(Book).filter(Book.id == new_borrow.book_id).first():
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Sách không tồn tại"
+            )
+        
+        book_copy = db.query(BookCopy)\
+            .join(Book, BookCopy.book_id == Book.id)\
+            .filter(Book.id == new_borrow.book_id, 
+                    BookCopy.status == "AVAILABLE").first()
+        
+        if not book_copy:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Bản sao sách không tồn tại"
+                detail="Hiện không còn bản sao của sách này"
             )
         
         if not db.query(User).filter(User.id == new_borrow.user_id).first():
             raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
+                status_code=status.HTTP_404_NOT_FOUND,
                 detail="Người mượn không tồn tại"
             )
         
         if new_borrow.staff_id and not db.query(User).filter(User.id == new_borrow.staff_id).first():
             raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
+                status_code=status.HTTP_404_NOT_FOUND,
                 detail="Nhân viên không tồn tại"
-            )
-        
-        if new_borrow.status and new_borrow.status not in ["PENDING", "APPROVED", "REJECTED"]:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Trạng thái không hợp lệ"
             )
         
         if new_borrow.duration and new_borrow.duration < 0:
@@ -178,8 +399,20 @@ async def create_borrow(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Thời hạn không hợp lệ"
             )
+        
+        is_admin = db.query(User)\
+            .join(UserRole)\
+            .join(Role)\
+            .filter(User.id == current_user.id, 
+                    Role.name == "admin").first()
 
-        borrow = Borrow(**new_borrow.dict())
+        borrow = Borrow(
+            duration=new_borrow.duration,
+            status="APPROVED" if is_admin else "PENDING",
+            book_copy_id=book_copy.id,
+            user_id=new_borrow.user_id,
+            staff_id=new_borrow.staff_id
+        )
         db.add(borrow)
         db.commit()
 
@@ -188,17 +421,10 @@ async def create_borrow(
             status_code=status.HTTP_201_CREATED
         )
     
-    except IntegrityError:
-        db.rollback()
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Dữ liệu không hợp lệ hoặc vi phạm ràng buộc cơ sở dữ liệu"
-        )
-    
     except SQLAlchemyError as e:
         db.rollback()
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            status_code=status.HTTP_409_CONFLICT,
             detail=f"Lỗi cơ sở dữ liệu: {str(e)}"
         )
 
@@ -293,20 +519,6 @@ async def import_borrows(
             status_code=201
         )
     
-    except IntegrityError:
-        db.rollback()
-        raise HTTPException(
-            status_code=409, 
-            detail="Lỗi khi lưu dữ liệu vào database."
-        )
-    
-    except IntegrityError:
-        db.rollback()
-        raise HTTPException(
-            status_code=400,
-            detail="Dữ liệu không hợp lệ hoặc vi phạm ràng buộc cơ sở dữ liệu"
-        )
-    
     except SQLAlchemyError as e:
         db.rollback()
         raise HTTPException(
@@ -332,9 +544,7 @@ async def update_borrow(
                 detail="Phiếu mượn không tồn tại"
             )
         
-        update_data = updated_borrow.dict(exclude_unset=True)
-        for key, value in update_data.items():
-            setattr(borrow, key, value)
+        borrow.update(updated_borrow.dict(), synchronize_session=False)
         db.commit()
 
         return JSONResponse(
@@ -349,13 +559,6 @@ async def update_borrow(
             detail=f"Lỗi cơ sở dữ liệu: {str(e)}"
         )
     
-    except IntegrityError:
-        db.rollback()
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Dữ liệu không hợp lệ hoặc vi phạm ràng buộc cơ sở dữ liệu"
-        )
-
 
 @router.delete("/delete/{id}",
             status_code=status.HTTP_200_OK)
@@ -381,13 +584,6 @@ async def delete_borrow(
             status_code=status.HTTP_200_OK
         )
     
-    except IntegrityError:
-        db.rollback()
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Dữ liệu không hợp lệ hoặc vi phạm ràng buộc cơ sở dữ liệu"
-        )
-    
     except SQLAlchemyError as e:
         db.rollback()
         raise HTTPException(
@@ -399,13 +595,13 @@ async def delete_borrow(
 @router.delete("/delete-many",
             status_code=status.HTTP_200_OK)
 async def delete_borrows(
-        ids: list[int],
+        ids: DeleteMany,
         db: Session = Depends(get_db),
         current_user = Depends(get_current_user)
     ):
 
     try:
-        borrows = db.query(Borrow).filter(Borrow.id.in_(ids))
+        borrows = db.query(Borrow).filter(Borrow.id.in_(ids.ids))
         if not borrows.first():
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
@@ -418,13 +614,6 @@ async def delete_borrows(
         return JSONResponse(
             content={"message": "Xóa danh sách phiếu mượn thành công"},
             status_code=status.HTTP_200_OK
-        )
-    
-    except IntegrityError:
-        db.rollback()
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Dữ liệu không hợp lệ hoặc vi phạm ràng buộc cơ sở dữ liệu"
         )
 
     except SQLAlchemyError as e:
@@ -456,11 +645,4 @@ async def delete_all_borrows(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Lỗi cơ sở dữ liệu: {str(e)}"
-        )
-    
-    except Exception as e:
-        db.rollback()
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Lỗi không xác định: {str(e)}"
         )

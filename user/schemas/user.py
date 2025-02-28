@@ -1,9 +1,6 @@
 from pydantic import BaseModel
 from typing import Optional
 from datetime import datetime, date
-from auth_credential.schemas.auth_credential import AuthCredentialResponse
-from role.schemas.role import RoleResponse
-from permission.schemas.permission import PermissionResponse
 
 
 class UserBase(BaseModel):
@@ -94,6 +91,21 @@ class UserCreateAccount(BaseModel):
     phone_number: Optional[str] = None
     birthdate: Optional[date] = None
     address: Optional[str] = None
+
+    class Config:
+        from_attributes = True
+
+
+class UserFullNameResponse(BaseModel):
+    id: int
+    full_name: str
+
+    class Config:
+        from_attributes = True
+
+
+class ListUserFullNameResponse(BaseModel):
+    users: list[UserFullNameResponse]
 
     class Config:
         from_attributes = True
