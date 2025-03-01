@@ -374,9 +374,9 @@ async def create_borrow(
         book_copy = db.query(BookCopy)\
             .join(Book, BookCopy.book_id == Book.id)\
             .filter(Book.id == new_borrow.book_id, 
-                    BookCopy.status == "AVAILABLE").first()
+                    BookCopy.status == "Chưa mượn")
         
-        if not book_copy:
+        if not book_copy.first():
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Hiện không còn bản sao của sách này"
@@ -408,12 +408,15 @@ async def create_borrow(
 
         borrow = Borrow(
             duration=new_borrow.duration,
-            status="APPROVED" if is_admin else "PENDING",
-            book_copy_id=book_copy.id,
+            status="Đang mượn" if is_admin else "Đang chờ",
+            book_copy_id=book_copy.first().id,
             user_id=new_borrow.user_id,
             staff_id=new_borrow.staff_id
         )
         db.add(borrow)
+        db.flush()
+
+        book_copy.update({"status": "Đã mượn"})
         db.commit()
 
         return JSONResponse(
