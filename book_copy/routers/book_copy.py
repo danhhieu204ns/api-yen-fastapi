@@ -3,7 +3,7 @@ from fastapi import APIRouter, Depends, HTTPException, UploadFile, status
 from fastapi.params import File
 from fastapi.responses import JSONResponse, StreamingResponse
 from sqlalchemy.orm import Session, joinedload
-from sqlalchemy.exc import IntegrityError, SQLAlchemyError
+from sqlalchemy.exc import SQLAlchemyError
 from book.models.book import Book
 from bookshelf.models.bookshelf import Bookshelf
 from configs.authentication import get_current_user
@@ -35,6 +35,7 @@ async def get_book_copies(
                 joinedload(BookCopy.book),
                 joinedload(BookCopy.bookshelf)
             )\
+            .order_by(Book.name)\
             .all()
 
         return ListBookCopyResponse(
@@ -44,7 +45,7 @@ async def get_book_copies(
 
     except SQLAlchemyError as e:
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            status_code=status.HTTP_409_CONFLICT,
             detail=f"Lỗi cơ sở dữ liệu: {str(e)}"
         )
 
@@ -70,6 +71,7 @@ async def get_book_copy_pageable(
                 joinedload(BookCopy.book),
                 joinedload(BookCopy.bookshelf)
             )\
+            .order_by(Book.name)\
             .offset(offset)\
             .limit(page_size)\
             .all()
@@ -157,7 +159,7 @@ async def get_book_copy_by_id(
     
     except SQLAlchemyError as e:
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            status_code=status.HTTP_409_CONFLICT,
             detail=f"Lỗi cơ sở dữ liệu: {str(e)}"
         )
     
@@ -182,7 +184,7 @@ async def search_book_copy(
         total_pages = math.ceil(total_count / page_size)
         offset = (page - 1) * page_size
 
-        book_copies = book_copies.offset(offset).limit(page_size).all()
+        book_copies = book_copies.order_by(Book.name).offset(offset).limit(page_size).all()
 
         return ListBookCopyResponse(
             book_copies=book_copies, 
@@ -192,7 +194,7 @@ async def search_book_copy(
     
     except SQLAlchemyError as e:
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            status_code=status.HTTP_409_CONFLICT,
             detail=f"Lỗi cơ sở dữ liệu: {str(e)}"
         )
 
@@ -215,17 +217,10 @@ async def create_book_copy(
             content={"message": "Tạo bản sao sách thành công"}
         )
     
-    except IntegrityError:
-        db.rollback()
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Dữ liệu không hợp lệ hoặc vi phạm ràng buộc cơ sở dữ liệu"
-        )
-    
     except SQLAlchemyError as e:
         db.rollback()
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            status_code=status.HTTP_409_CONFLICT,
             detail=f"Lỗi cơ sở dữ liệu: {str(e)}"
         )
 
@@ -302,13 +297,6 @@ async def import_book_copies(
             content={"message": "Nhập dữ liệu thành công"}
         )
     
-    except IntegrityError:
-        db.rollback()
-        raise HTTPException(
-            status_code=409, 
-            detail="Lỗi khi lưu dữ liệu vào database."
-        )
-    
     except SQLAlchemyError as e:
         db.rollback()
         raise HTTPException(
@@ -345,17 +333,10 @@ async def update_book_copy(
             content={"message": "Cập nhật bản sao sách thành công"}
         )
     
-    except IntegrityError:
-        db.rollback()
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Dữ liệu không hợp lệ hoặc vi phạm ràng buộc cơ sở dữ liệu"
-        )
-    
     except SQLAlchemyError as e:
         db.rollback()
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            status_code=status.HTTP_409_CONFLICT,
             detail=f"Lỗi cơ sở dữ liệu: {str(e)}"
         )
 
@@ -384,17 +365,10 @@ async def delete_book_copy(
             content={"message": "Xóa bản sao sách thành công"}
         )
     
-    except IntegrityError:
-        db.rollback()
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Dữ liệu không hợp lệ hoặc vi phạm ràng buộc cơ sở dữ liệu"
-        )
-    
     except SQLAlchemyError as e:
         db.rollback()
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            status_code=status.HTTP_409_CONFLICT,
             detail=f"Lỗi cơ sở dữ liệu: {str(e)}"
         )
 
@@ -423,17 +397,10 @@ async def delete_book_copies(
             content={"message": "Xóa bản sao sách thành công"}
         )
     
-    except IntegrityError:
-        db.rollback()
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Dữ liệu không hợp lệ hoặc vi phạm ràng buộc cơ sở dữ liệu"
-        )
-    
     except SQLAlchemyError as e:
         db.rollback()
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            status_code=status.HTTP_409_CONFLICT,
             detail=f"Lỗi cơ sở dữ liệu: {str(e)}"
         )
 
@@ -453,17 +420,11 @@ async def delete_all_book_copies(
             status_code=status.HTTP_200_OK,
             content={"message": "Xóa tất cả bản sao sách thành công"}
         )
-    
-    except IntegrityError:
-        db.rollback()
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Dữ liệu không hợp lệ hoặc vi phạm ràng buộc cơ sở dữ liệu"
-        )
+
     
     except SQLAlchemyError as e:
         db.rollback()
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            status_code=status.HTTP_409_CONFLICT,
             detail=f"Lỗi cơ sở dữ liệu: {str(e)}"
         )
