@@ -7,6 +7,7 @@ class StatsResponse(BaseModel):
     borrowed_books: int
     active_users: int
 
+
 class TopBookItem(BaseModel):
     name: str
     count: int
