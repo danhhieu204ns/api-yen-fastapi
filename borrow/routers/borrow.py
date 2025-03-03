@@ -12,10 +12,9 @@ from borrow.models.borrow import Borrow
 from borrow.schemas.borrow import *
 from role.models.role import Role
 from user.models.user import User
+from user_role.models.user_role import UserRole
 import math
 import pandas as pd
-
-from user_role.models.user_role import UserRole
 
 
 router = APIRouter(
@@ -33,7 +32,6 @@ async def get_borrows(
     ):
 
     try:
-        # Create aliases for User table to distinguish between user and staff
         UserAlias = aliased(User, name="borrower")
         StaffAlias = aliased(User, name="staff")
         
@@ -43,15 +41,11 @@ async def get_borrows(
             Book,
             UserAlias,
             StaffAlias
-        ).join(
-            BookCopy, Borrow.book_copy_id == BookCopy.id
-        ).join(
-            Book, BookCopy.book_id == Book.id
-        ).join(
-            UserAlias, Borrow.user_id == UserAlias.id
-        ).outerjoin(
-            StaffAlias, Borrow.staff_id == StaffAlias.id
-        )
+        )\
+            .join(BookCopy, Borrow.book_copy_id == BookCopy.id)\
+            .join(Book, BookCopy.book_id == Book.id)\
+            .join(UserAlias, Borrow.user_id == UserAlias.id)\
+            .outerjoin(StaffAlias, Borrow.staff_id == StaffAlias.id)
         
         borrows_data = borrows_query.all()
         
@@ -95,7 +89,7 @@ async def get_borrows(
 
     except SQLAlchemyError as e:
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            status_code=status.HTTP_409_CONFLICT,
             detail=f"Lỗi cơ sở dữ liệu: {str(e)}"
         )
 
@@ -111,7 +105,6 @@ async def get_borrows_pageable(
     ):
 
     try:
-        # Create aliases for User table to distinguish between user and staff
         UserAlias = aliased(User, name="borrower")
         StaffAlias = aliased(User, name="staff")
         
@@ -121,15 +114,11 @@ async def get_borrows_pageable(
             Book,
             UserAlias,
             StaffAlias
-        ).join(
-            BookCopy, Borrow.book_copy_id == BookCopy.id
-        ).join(
-            Book, BookCopy.book_id == Book.id
-        ).join(
-            UserAlias, Borrow.user_id == UserAlias.id
-        ).outerjoin(
-            StaffAlias, Borrow.staff_id == StaffAlias.id
-        )
+        )\
+            .join(BookCopy, Borrow.book_copy_id == BookCopy.id)\
+            .join(Book, BookCopy.book_id == Book.id)\
+            .join(UserAlias, Borrow.user_id == UserAlias.id)\
+            .outerjoin(StaffAlias, Borrow.staff_id == StaffAlias.id)
         
         total_count = base_query.count()
         total_pages = math.ceil(total_count / page_size)
@@ -178,7 +167,7 @@ async def get_borrows_pageable(
     
     except SQLAlchemyError as e:
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            status_code=status.HTTP_409_CONFLICT,
             detail=f"Lỗi cơ sở dữ liệu: {str(e)}"
         )
 
@@ -193,7 +182,6 @@ async def get_borrow_by_id(
     ):
 
     try:
-        # Create aliases for User table
         UserAlias = aliased(User, name="borrower")
         StaffAlias = aliased(User, name="staff")
         
@@ -203,15 +191,12 @@ async def get_borrow_by_id(
             Book,
             UserAlias,
             StaffAlias
-        ).join(
-            BookCopy, Borrow.book_copy_id == BookCopy.id
-        ).join(
-            Book, BookCopy.book_id == Book.id
-        ).join(
-            UserAlias, Borrow.user_id == UserAlias.id
-        ).outerjoin(
-            StaffAlias, Borrow.staff_id == StaffAlias.id
-        ).filter(Borrow.id == id).first()
+        )\
+            .join(BookCopy, Borrow.book_copy_id == BookCopy.id)\
+            .join(Book, BookCopy.book_id == Book.id)\
+            .join(UserAlias, Borrow.user_id == UserAlias.id)\
+            .outerjoin(StaffAlias, Borrow.staff_id == StaffAlias.id)\
+            .filter(Borrow.id == id).first()
 
         if not borrow_data:
             raise HTTPException(
@@ -255,7 +240,7 @@ async def get_borrow_by_id(
     
     except SQLAlchemyError as e:
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            status_code=status.HTTP_409_CONFLICT,
             detail=f"Lỗi cơ sở dữ liệu: {str(e)}"
         )
     
@@ -272,7 +257,6 @@ async def search_borrows(
     ):
 
     try:
-        # Create aliases for User table
         UserAlias = aliased(User, name="borrower")
         StaffAlias = aliased(User, name="staff")
         
@@ -282,15 +266,11 @@ async def search_borrows(
             Book,
             UserAlias,
             StaffAlias
-        ).join(
-            BookCopy, Borrow.book_copy_id == BookCopy.id
-        ).join(
-            Book, BookCopy.book_id == Book.id
-        ).join(
-            UserAlias, Borrow.user_id == UserAlias.id
-        ).outerjoin(
-            StaffAlias, Borrow.staff_id == StaffAlias.id
-        )
+        )\
+            .join(BookCopy, Borrow.book_copy_id == BookCopy.id)\
+            .join(Book, BookCopy.book_id == Book.id)\
+            .join(UserAlias, Borrow.user_id == UserAlias.id)\
+            .outerjoin(StaffAlias, Borrow.staff_id == StaffAlias.id)
         
         if search_borrow.duration:
             base_query = base_query.filter(Borrow.duration == search_borrow.duration)
@@ -350,13 +330,12 @@ async def search_borrows(
     
     except SQLAlchemyError as e:
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            status_code=status.HTTP_409_CONFLICT,
             detail=f"Lỗi cơ sở dữ liệu: {str(e)}"
         )
 
 
-@router.post("/create",
-            status_code=status.HTTP_201_CREATED)
+@router.post("/create")
 async def create_borrow(
         new_borrow: BorrowCreate,
         db: Session = Depends(get_db),
@@ -374,7 +353,7 @@ async def create_borrow(
         book_copy = db.query(BookCopy)\
             .join(Book, BookCopy.book_id == Book.id)\
             .filter(Book.id == new_borrow.book_id, 
-                    BookCopy.status == "Chưa mượn")
+                    BookCopy.status == "Có sẵn")
         
         if not book_copy.first():
             raise HTTPException(
@@ -403,8 +382,7 @@ async def create_borrow(
         is_admin = db.query(User)\
             .join(UserRole)\
             .join(Role)\
-            .filter(User.id == current_user.id, 
-                    Role.name == "admin").first()
+            .filter(User.id == current_user.id, Role.name == "admin").first()
 
         borrow = Borrow(
             duration=new_borrow.duration,
@@ -433,8 +411,7 @@ async def create_borrow(
         )
 
 
-@router.post("/import", 
-            status_code=status.HTTP_201_CREATED)
+@router.post("/import")
 async def import_borrows(
         file: UploadFile = File(...),
         db: Session = Depends(get_db),
@@ -491,11 +468,9 @@ async def import_borrows(
         if not book_id:
             errors.append({"Dòng": index + 2, "Lỗi": f"Tên sách '{row.get('book_name')}' không tồn tại."})
             continue
-        
         if not book_copy_id:
             errors.append({"Dòng": index + 2, "Lỗi": f"Không tìm thấy bản sao của sách '{row.get('book_name')}'"})
             continue
-        
         if not user_id:
             errors.append({"Dòng": index + 2, "Lỗi": f"Người mượn '{row.get('user_name')}' không tồn tại."})
             continue
@@ -526,13 +501,12 @@ async def import_borrows(
     except SQLAlchemyError as e:
         db.rollback()
         raise HTTPException(
-            status_code=500,
+            status_code=409,
             detail=f"Lỗi cơ sở dữ liệu: {str(e)}"
         )
     
 
-@router.put("/update/{id}", 
-            status_code=status.HTTP_200_OK)
+@router.put("/update/{id}")
 async def update_borrow(
         id: int,
         updated_borrow: BorrowUpdate,
@@ -548,6 +522,10 @@ async def update_borrow(
                 detail="Phiếu mượn không tồn tại"
             )
         
+        if updated_borrow.status == "Đã trả":
+            book_copy_to_update = db.query(BookCopy).filter(BookCopy.id == borrow.first().book_copy_id)
+            book_copy_to_update.update({"status": "Có sẵn"})
+
         borrow.update(updated_borrow.dict(), synchronize_session=False)
         db.commit()
 
@@ -559,13 +537,12 @@ async def update_borrow(
     except SQLAlchemyError as e:
         db.rollback()
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            status_code=status.HTTP_409_CONFLICT,
             detail=f"Lỗi cơ sở dữ liệu: {str(e)}"
         )
     
 
-@router.delete("/delete/{id}",
-            status_code=status.HTTP_200_OK)
+@router.delete("/delete/{id}")
 async def delete_borrow(
         id: int,
         db: Session = Depends(get_db),
@@ -591,13 +568,12 @@ async def delete_borrow(
     except SQLAlchemyError as e:
         db.rollback()
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            status_code=status.HTTP_409_CONFLICT,
             detail=f"Lỗi cơ sở dữ liệu: {str(e)}"
         )
 
 
-@router.delete("/delete-many",
-            status_code=status.HTTP_200_OK)
+@router.delete("/delete-many")
 async def delete_borrows(
         ids: DeleteMany,
         db: Session = Depends(get_db),
@@ -623,13 +599,12 @@ async def delete_borrows(
     except SQLAlchemyError as e:
         db.rollback()
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            status_code=status.HTTP_409_CONFLICT,
             detail=f"Lỗi cơ sở dữ liệu: {str(e)}"
         )
 
 
-@router.delete("/delete-all",
-            status_code=status.HTTP_200_OK)
+@router.delete("/delete-all")
 async def delete_all_borrows(
         db: Session = Depends(get_db),
         current_user = Depends(get_current_user)
@@ -647,6 +622,6 @@ async def delete_all_borrows(
     except SQLAlchemyError as e:
         db.rollback()
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            status_code=status.HTTP_409_CONFLICT,
             detail=f"Lỗi cơ sở dữ liệu: {str(e)}"
         )
