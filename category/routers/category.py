@@ -52,7 +52,9 @@ async def get_categories_pageable(
         total_count = db.query(Category).count()
         total_pages = math.ceil(total_count / page_size)
         offset = (page - 1) * page_size
-        categories = db.query(Category).offset(offset).limit(page_size).all()
+        categories = db.query(Category)\
+            .order_by(Category.name)\
+            .offset(offset).limit(page_size).all()
 
         return CategoryPageableResponse(
             categories=categories,
@@ -175,7 +177,9 @@ async def search_category(
         total_count = category.count()
         total_pages = math.ceil(total_count / page_size)
         offset = (page - 1) * page_size
-        categories = category.offset(offset).limit(page_size).all()
+        categories = db.query(Category)\
+            .order_by(Category.name)\
+            .offset(offset).limit(page_size).all()
 
         return CategoryPageableResponse(
             categories=categories,
@@ -240,7 +244,7 @@ async def import_categories(
     ):
 
     COLUMN_MAPPING = {
-        "Tên danh mục": "name",
+        "Tên thể loại sách": "name",
         "Giới hạn tuổi": "age_limit",
         "Mô tả": "description"
     }
