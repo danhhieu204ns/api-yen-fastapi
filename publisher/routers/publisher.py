@@ -53,7 +53,9 @@ async def get_publishers_pageable(
         total_count = db.query(Publisher).count()
         total_pages = math.ceil(total_count / page_size)
         offset = (page - 1) * page_size
-        publishers = db.query(Publisher).offset(offset).limit(page_size).all()
+        publishers = db.query(Publisher)\
+            .order_by(Publisher.name)\
+            .offset(offset).limit(page_size).all()
 
         return PublisherPageableResponse(
             publishers=publishers,
@@ -106,6 +108,26 @@ async def export_publishers(
             status_code=500, 
             detail=f"Lỗi xuất dữ liệu: {str(e)}"
         )
+    
+
+@router.get("/name")
+async def get_publisher_names(
+        db: Session = Depends(get_db)
+    ):
+
+    try:
+        publishers = db.query(Publisher).all()
+        
+        return ListPublisherNameResponse(
+            publishers=[PublisherName(name=p.name, id=p.id) for p in publishers]
+        )
+    
+    except SQLAlchemyError as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Lỗi cơ sở dữ liệu: {str(e)}"
+        )
+
 
 
 @router.get("/{id}",
@@ -160,7 +182,9 @@ async def search_publisher(
         total_pages = math.ceil(total_count / page_size)
         offset = (page - 1) * page_size
 
-        publishers = publishers.offset(offset).limit(page_size).all()
+        publishers = db.query(Publisher)\
+            .order_by(Publisher.name)\
+            .offset(offset).limit(page_size).all()
 
         return PublisherPageableResponse(
             publishers=publishers,
