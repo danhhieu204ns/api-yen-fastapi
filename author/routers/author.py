@@ -190,8 +190,7 @@ async def search_authors(
         total_count = authors.count()
         total_pages = math.ceil(total_count / page_size)
         offset = (page - 1) * page_size
-        authors = db.query(Author)\
-            .order_by(
+        authors = authors.order_by(
                 func.split_part(Author.name, ' ', func.array_length(func.string_to_array(Author.name, ' '), 1))
             )\
             .offset(offset).limit(page_size).all()
