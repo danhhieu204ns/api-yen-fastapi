@@ -168,17 +168,16 @@ async def search_category(
     try:
         category = db.query(Category)
         if info.name:
-            category = category.filter(Category.name.like(f"%{info.name.strip().lower()}%"))
+            category = category.filter(Category.name.ilike(f"%{info.name.strip()}%"))
         if info.age_limit:
             category = category.filter(Category.age_limit == info.age_limit)
         if info.description:
-            category = category.filter(Category.description.like(f"%{info.description.strip().lower()}%"))
+            category = category.filter(Category.description.ilike(f"%{info.description.strip()}%"))
 
         total_count = category.count()
         total_pages = math.ceil(total_count / page_size)
         offset = (page - 1) * page_size
-        categories = db.query(Category)\
-            .order_by(Category.name)\
+        categories = category.order_by(Category.name)\
             .offset(offset).limit(page_size).all()
 
         return CategoryPageableResponse(
