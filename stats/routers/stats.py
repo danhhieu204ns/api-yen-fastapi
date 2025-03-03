@@ -1,5 +1,6 @@
 from datetime import datetime, timedelta
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi.responses import JSONResponse
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 from book_copy.models.book_copy import BookCopy
@@ -32,9 +33,12 @@ def get_library_stats(
                     Role.name == "admin").first()
         
         if not is_admin:
-            return {"error": "You are not authorized to access this resource."}
+            return JSONResponse(
+                content={"error": "You are not authorized to access this resource."}, 
+                status_code=status.HTTP_403_FORBIDDEN
+            )
 
-        total_books = db.query(Book).count()
+        total_books = db.query(BookCopy).count()
         total_borrowings = db.query(Borrow).count()
         borrowed_books = db.query(Borrow).filter(Borrow.status.in_(["Quá hạn", "Đang mượn"])).count()
         active_users = db.query(User).count()
@@ -47,7 +51,10 @@ def get_library_stats(
         }
     
     except Exception as e:
-        return {"error": str(e)}
+        return JSONResponse(
+            status_code=status.HTTP_409_CONFLICT, 
+            content={"error": str(e)}
+        )
 
 
 @router.get("/monthly", 
@@ -55,8 +62,8 @@ def get_library_stats(
 def get_monthly_borrowing_stats(
         db: Session = Depends(get_db), 
         current_user: User = Depends(get_current_user)
-        
     ):
+
     try:
         is_admin = db.query(User)\
             .join(UserRole)\
@@ -78,19 +85,21 @@ def get_monthly_borrowing_stats(
             .all()
         )
 
-        return {
-            "monthly_borrows": [{"month": str(month), "count": count} for month, count in results]
-        }
+        return JSONResponse(
+            content={
+                "monthly_borrows": [{"month": month.strftime("%Y-%m"), "count": count} for month, count in results]
+            },
+            status_code=status.HTTP_200_OK
+        )
 
     except Exception as e:
         raise HTTPException(
-            status_code=409, 
+            status_code=status.HTTP_409_CONFLICT, 
             detail=str(e)
         )
 
 
-@router.get("/top-books", 
-            response_model=TopBooksResponse)
+@router.get("/top-books", response_model=TopBooksResponse)
 def get_top_borrowed_books(
         db: Session = Depends(get_db), 
         current_user: User = Depends(get_current_user)
@@ -115,9 +124,12 @@ def get_top_borrowed_books(
             .all()
         )
 
-        return {
-            "top_books": [{"name": name, "count": count} for name, count in results]
-        }
+        return JSONResponse(
+            content={
+                "top_books": [{"name": name, "count": count} for name, count in results]
+            },
+            status_code=status.HTTP_200_OK
+        )
 
     except Exception as e:
         raise HTTPException(
@@ -138,7 +150,10 @@ def get_books_by_category(
                     Role.name == "admin").first()
         
         if not is_admin:
-            return {"error": "You are not authorized to access this resource."}
+            return JSONResponse(
+                content={"error": "You are not authorized to access this resource."},
+                status_code=status.HTTP_403_FORBIDDEN
+            )
         
         results = (
             db.query(Category.name, func.count(Book.id))
@@ -148,9 +163,12 @@ def get_books_by_category(
             .all()
         )
 
-        return {
-            "categories": [{"category": name, "count": count} for name, count in results]
-        }
+        return JSONResponse(
+            content={
+                "categories": [{"name": name, "count": count} for name, count in results]
+            },
+            status_code=status.HTTP_200_OK
+        )
 
     except Exception as e:
         raise HTTPException(
@@ -158,41 +176,6 @@ def get_books_by_category(
             detail=str(e)
         )
 
-@router.get("/books/most-borrowed", response_model=TopBooksResponse)
-def get_most_borrowed_books(
-        db: Session = Depends(get_db), 
-        current_user: User = Depends(get_current_user),
-        limit: int = 10
-    ):
-    try:
-        is_admin = db.query(User)\
-            .join(UserRole)\
-            .join(Role)\
-            .filter(User.id == current_user.id, 
-                    Role.name == "admin").first()
-        
-        if not is_admin:
-            return {"error": "You are not authorized to access this resource."}
-        
-        results = (
-            db.query(Book.name, func.count(Borrow.id))
-            .join(BookCopy, BookCopy.book_id == Book.id)
-            .join(Borrow, Borrow.book_copy_id == BookCopy.id)
-            .group_by(Book.id, Book.name)
-            .order_by(func.count(Borrow.id).desc())
-            .limit(limit)
-            .all()
-        )
-
-        return {
-            "top_books": [{"name": name, "count": count} for name, count in results]
-        }
-
-    except Exception as e:
-        raise HTTPException(
-            status_code=409, 
-            detail=str(e)
-        )
 
 @router.get("/books/status", response_model=BookStatusResponse)
 def get_books_by_status(
@@ -207,12 +190,13 @@ def get_books_by_status(
                     Role.name == "admin").first()
         
         if not is_admin:
-            return {"error": "You are not authorized to access this resource."}
+            return JSONResponse(
+                content={"error": "You are not authorized to access this resource."},
+                status_code=status.HTTP_403_FORBIDDEN
+            )
         
-        # Count total books
         total_books = db.query(func.count(BookCopy.id)).scalar()
         
-        # Count books by borrow status
         borrowed_counts = (
             db.query(Borrow.status, func.count(BookCopy.id))
             .join(BookCopy, BookCopy.id == Borrow.book_copy_id)
@@ -221,17 +205,18 @@ def get_books_by_status(
             .all()
         )
         
-        # Calculate available books
         borrowed_total = sum(count for _, count in borrowed_counts)
         available_books = total_books - borrowed_total
         
-        # Prepare result
         status_counts = [{"status": "Có sẵn", "count": available_books}]
         status_counts.extend([{"status": status, "count": count} for status, count in borrowed_counts])
         
-        return {
-            "statuses": status_counts
-        }
+        return JSONResponse(
+            content={
+                "status_counts": status_counts
+            },
+            status_code=status.HTTP_200_OK
+        )
 
     except Exception as e:
         raise HTTPException(
