@@ -39,6 +39,7 @@ async def get_all_users(
             .outerjoin(UserRole, User.id == UserRole.user_id)
             .outerjoin(Role, UserRole.role_id == Role.id)
             .group_by(User.id)
+            .order_by(func.split_part(User.full_name, ' ', -1))
         )
         users = query.all()
         
@@ -65,7 +66,7 @@ async def get_all_users(
     
     except SQLAlchemyError as e:
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            status_code=status.HTTP_409_CONFLICT,
             detail=str(e)
         )
 
@@ -93,6 +94,7 @@ async def get_user_pageable(
             .outerjoin(UserRole, User.id == UserRole.user_id)
             .outerjoin(Role, UserRole.role_id == Role.id)
             .group_by(User.id)
+            .order_by(func.split_part(User.full_name, ' ', -1))
         )
         users = query.all()
         

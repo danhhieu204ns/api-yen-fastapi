@@ -1,5 +1,7 @@
 venv
 .env
+
+alembic
 start.sh
 
 __pycache__

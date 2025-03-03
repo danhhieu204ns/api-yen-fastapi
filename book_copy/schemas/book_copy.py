@@ -14,13 +14,20 @@ class BookCopyBase(BaseModel):
     class Config:
         from_attributes = True
 
+    
+class BookshelfBase(BaseModel):
+    name: str
+    id: int
+
+    class Config:
+        from_attributes = True
+
 
 class BookCopyCreate(BookCopyBase):
     pass
 
 
 class BookCopyUpdate(BaseModel):
-    status: Optional[str] = None
     bookshelf_id: Optional[int] = None
 
 

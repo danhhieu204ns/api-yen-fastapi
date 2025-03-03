@@ -2,8 +2,9 @@ from io import BytesIO
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
 from fastapi.responses import JSONResponse, StreamingResponse
 from sqlalchemy.orm import Session
-from sqlalchemy.exc import IntegrityError, SQLAlchemyError
+from sqlalchemy.exc import SQLAlchemyError
 from author.models.author import Author
+from book_copy.models.book_copy import BookCopy
 from category.models.category import Category
 from publisher.models.publisher import Publisher
 from configs.authentication import get_current_user
@@ -30,6 +31,23 @@ async def get_books(
     try:
         books = db.query(Book).all()
 
+        books = [BookResponse(
+            id=b.id,
+            name=b.name,
+            status=b.status,
+            summary=b.summary,
+            pages=b.pages,
+            language=b.language,
+            author=AuthorBase(id=b.author.id, name=b.author.name) if b.author else None,
+            publisher=PublisherBase(id=b.publisher.id, name=b.publisher.name) if b.publisher else None,
+            category=CategoryBase(id=b.category.id, name=b.category.name) if b.category else None,
+            created_at=b.created_at,
+            available_copies=db.query(BookCopy)\
+                .filter(BookCopy.book_id == b.id, BookCopy.status == "Có sẵn").count(),
+            total_copies=db.query(BookCopy)\
+                .filter(BookCopy.book_id == b.id).count()
+        ) for b in books]
+
         return ListBookResponse(
             books=books, 
             total_data=len(books)
@@ -37,7 +55,7 @@ async def get_books(
 
     except SQLAlchemyError as e:
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            status_code=status.HTTP_409_CONFLICT,
             detail=f"Lỗi cơ sở dữ liệu: {str(e)}"
         )
 
@@ -55,8 +73,24 @@ async def get_genres_pageable(
         total_data = db.query(Book).count()
         total_pages = math.ceil(total_data / page_size)
         offset = (page - 1) * page_size
+        books = db.query(Book).order_by(Book.name).offset(offset).limit(page_size).all() 
 
-        books = db.query(Book).offset(offset).limit(page_size).all()
+        books = [BookResponse(
+            id=b.id,
+            name=b.name,
+            status=b.status,
+            summary=b.summary,
+            pages=b.pages,
+            language=b.language,
+            author=AuthorBase(id=b.author.id, name=b.author.name) if b.author else None,
+            publisher=PublisherBase(id=b.publisher.id, name=b.publisher.name) if b.publisher else None,
+            category=CategoryBase(id=b.category.id, name=b.category.name) if b.category else None,
+            created_at=b.created_at,
+            available_copies=db.query(BookCopy)\
+                .filter(BookCopy.book_id == b.id, BookCopy.status == "Có sẵn").count(),
+            total_copies=db.query(BookCopy)\
+                .filter(BookCopy.book_id == b.id).count()
+        ) for b in books]
 
         return BookPageableResponse(
             total_data=total_data,
@@ -66,13 +100,12 @@ async def get_genres_pageable(
     
     except SQLAlchemyError as e:
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            status_code=status.HTTP_409_CONFLICT,
             detail=f"Lỗi cơ sở dữ liệu: {str(e)}"
         )
         
 
-@router.get("/export",
-            status_code=status.HTTP_200_OK)
+@router.get("/export", status_code=status.HTTP_200_OK)
 async def export_books(
         db: Session = Depends(get_db), 
         current_user = Depends(get_current_user)
@@ -89,7 +122,8 @@ async def export_books(
             "Ngôn ngữ": book.language,
             "Tác giả": book.author.name if book.author else "Không có tác giả",
             "Nhà xuất bản": book.publisher.name if book.publisher else "Không có NXB",
-            "Thể loại": book.category.name if book.category else "Không có thể loại"
+            "Thể loại": book.category.name if book.category else "Không có thể loại", 
+            "Số bản sao": db.query(BookCopy).filter(BookCopy.book_id == book.id).count()
         } for index, book in enumerate(books)])
 
         output = BytesIO()
@@ -98,19 +132,15 @@ async def export_books(
         writer.close()
         output.seek(0)
 
-        headers = {
-            'Content-Disposition': 'attachment; filename="authors.xlsx"'
-        }
-        
         return StreamingResponse(
             output,
-            headers=headers,
+            headers={'Content-Disposition': 'attachment; filename="authors.xlsx"'},
             media_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
         )
     
     except SQLAlchemyError as e:
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            status_code=status.HTTP_409_CONFLICT,
             detail=f"Lỗi cơ sở dữ liệu: {str(e)}"
         )
     
@@ -127,9 +157,7 @@ async def get_all_books_by_name(
         books = db.query(Book).all()
         book_names = [BookNameResponse(id=b.id, name=b.name) for b in books]
 
-        return ListBookNameResponse(
-            books=book_names
-        )
+        return ListBookNameResponse(books=book_names)
 
     except SQLAlchemyError as e:
         raise HTTPException(
@@ -154,10 +182,31 @@ async def get_book_by_id(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="Sách không tồn tại"
             )
+   
+        available_copies = db.query(Book).filter(
+            Book.id == id, 
+            Book.status == "Có sẵn"
+        ).count()
+
+        total_copies = db.query(Book).filter(Book.id == id).count()
+        
+        book_data = {
+            "id": book.id,
+            "name": book.name,
+            "status": book.status,
+            "summary": book.summary,
+            "pages": book.pages,
+            "language": book.language,
+            "author_id": book.author_id,
+            "publisher_id": book.publisher_id,
+            "category_id": book.category_id,
+            "available_copies": available_copies, 
+            "total_copies": total_copies
+        }
         
         return JSONResponse(
             status_code=status.HTTP_200_OK,
-            content={"book": book}
+            content={"book": book_data}
         )
     
     except SQLAlchemyError as e:
@@ -180,35 +229,28 @@ async def search_books(
     try:
         books = db.query(Book)
         if info.name:
-            books = books.filter(Book.name.like(f"%{info.name.strip().lower()}%"))
+            books = books.filter(Book.name.ilike(f"%{info.name.strip()}%"))
 
         total_data = books.count()
         total_pages = math.ceil(total_data / page_size)
         offset = (page - 1) * page_size
 
-        books = books.offset(offset).limit(page_size).all()    
+        books = books.order_by(Book.name).offset(offset).limit(page_size).all()    
         
         return BookPageableResponse(
             books=books, 
-            total_data=len(books), 
+            total_data=total_data, 
             total_pages=total_pages
         )
     
     except SQLAlchemyError as e:
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            status_code=status.HTTP_409_CONFLICT,
             detail=f"Lỗi cơ sở dữ liệu: {str(e)}"
         )
-    
-    except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=str(e)
-        )
 
 
-@router.post("/create",
-            status_code=status.HTTP_201_CREATED)
+@router.post("/create")
 async def create_book(
         new_book: BookCreate,
         db: Session = Depends(get_db),
@@ -224,25 +266,17 @@ async def create_book(
             )
 
         book = Book(**new_book.dict())
-        db.add(book)
         db.commit()
 
         return JSONResponse(
             status_code=status.HTTP_201_CREATED,
             content={"message": "Thêm sách thành công"}
         )
-    
-    except IntegrityError:
-        db.rollback()
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Dữ liệu không hợp lệ hoặc vi phạm ràng buộc cơ sở dữ liệu"
-        )
-    
+
     except SQLAlchemyError as e:
         db.rollback()
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            status_code=status.HTTP_409_CONFLICT,
             detail=f"Lỗi cơ sở dữ liệu: {str(e)}"
         )
 
@@ -338,13 +372,6 @@ async def import_books(
             status_code=201, 
             content={"message": "Import sách thành công"}
         )
-    
-    except IntegrityError:
-        db.rollback()
-        raise HTTPException(
-            status_code=409, 
-            detail="Lỗi khi lưu dữ liệu vào database."
-        )
    
     except SQLAlchemyError as e:
         db.rollback()
@@ -354,8 +381,7 @@ async def import_books(
         )
 
 
-@router.put("/update/{id}",
-            status_code=status.HTTP_200_OK)
+@router.put("/update/{id}")
 async def update_book(
         id: int,
         book: BookUpdate,
@@ -379,23 +405,15 @@ async def update_book(
             content={"message": "Cập nhật sách thành công"}
         )
     
-    except IntegrityError:
-        db.rollback()
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Dữ liệu không hợp lệ hoặc vi phạm ràng buộc cơ sở dữ liệu"
-        )
-    
     except SQLAlchemyError as e:
         db.rollback()
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            status_code=status.HTTP_409_CONFLICT,
             detail=f"Lỗi cơ sở dữ liệu: {str(e)}"
         )
 
 
-@router.delete("/delete/{id}",
-            status_code=status.HTTP_200_OK)
+@router.delete("/delete/{id}")
 async def delete_book(
         id: int,
         db: Session = Depends(get_db),
@@ -418,23 +436,15 @@ async def delete_book(
             content={"message": "Xóa sách thành công"}
         )
     
-    except IntegrityError:
-        db.rollback()
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Dữ liệu không hợp lệ hoặc vi phạm ràng buộc cơ sở dữ liệu"
-        )
-    
     except SQLAlchemyError as e:
         db.rollback()
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            status_code=status.HTTP_409_CONFLICT,
             detail=f"Lỗi cơ sở dữ liệu: {str(e)}"
         )
 
 
-@router.delete("/delete-many",
-            status_code=status.HTTP_200_OK)
+@router.delete("/delete-many")
 async def delete_books(
         ids: DeleteMany,
         db: Session = Depends(get_db),
@@ -457,23 +467,15 @@ async def delete_books(
             content={"message": "Xóa sách thành công"}
         )
     
-    except IntegrityError:
-        db.rollback()
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Dữ liệu không hợp lệ hoặc vi phạm ràng buộc cơ sở dữ liệu"
-        )
-    
     except SQLAlchemyError as e:
         db.rollback()
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            status_code=status.HTTP_409_CONFLICT,
             detail=f"Lỗi cơ sở dữ liệu: {str(e)}"
         )
 
 
-@router.delete("/delete-all",
-            status_code=status.HTTP_200_OK)
+@router.delete("/delete-all")
 async def delete_all_books(
         db: Session = Depends(get_db),
         current_user = Depends(get_current_user)
@@ -488,17 +490,9 @@ async def delete_all_books(
             content={"message": "Xóa tất cả sách thành công"}
         )
     
-    except IntegrityError:
-        db.rollback()
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Dữ liệu không hợp lệ hoặc vi phạm ràng buộc cơ sở dữ liệu"
-        )
-    
     except SQLAlchemyError as e:
         db.rollback()
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            status_code=status.HTTP_409_CONFLICT,
             detail=f"Lỗi cơ sở dữ liệu: {str(e)}"
         )
-    
