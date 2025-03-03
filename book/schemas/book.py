@@ -55,6 +55,8 @@ class BookResponse(BookBase):
     publisher: Optional[PublisherBase] = None
     category: Optional[CategoryBase] = None
     created_at: datetime
+    available_copies: int = 0 
+    total_copies: int = 0
     
     class Config:
         from_attributes = True
@@ -99,4 +101,3 @@ class ListBookNameResponse(BaseModel):
 
     class Config:
         from_attributes = True
-        
