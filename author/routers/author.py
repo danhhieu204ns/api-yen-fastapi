@@ -53,7 +53,11 @@ async def get_author_pageable(
         total_count = db.query(Author).count()
         total_pages = math.ceil(total_count / page_size)
         offset = (page - 1) * page_size
-        authors = db.query(Author).offset(offset).limit(page_size).all()
+        authors = db.query(Author)\
+            .order_by(
+                func.split_part(Author.name, ' ', func.array_length(func.string_to_array(Author.name, ' '), 1))
+            )\
+            .offset(offset).limit(page_size).all()
 
         authors_pageable_res = AuthorPageableResponse(
             authors=authors,
@@ -186,7 +190,11 @@ async def search_authors(
         total_count = authors.count()
         total_pages = math.ceil(total_count / page_size)
         offset = (page - 1) * page_size
-        authors = authors.offset(offset).limit(page_size).all()
+        authors = db.query(Author)\
+            .order_by(
+                func.split_part(Author.name, ' ', func.array_length(func.string_to_array(Author.name, ' '), 1))
+            )\
+            .offset(offset).limit(page_size).all()
 
         return AuthorPageableResponse(
             authors=authors,
