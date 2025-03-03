@@ -170,20 +170,19 @@ async def search_publisher(
 
         publishers = db.query(Publisher)
         if info.name and info.name.strip():
-            publishers = publishers.filter(func.lower(Publisher.name).like(f"%{info.name.strip().lower()}%"))
+            publishers = publishers.filter(func.lower(Publisher.name).ilike(f"%{info.name.strip().lower()}%"))
         if info.email and info.email.strip():
-            publishers = publishers.filter(func.lower(Publisher.email).like(f"%{info.email.strip().lower()}%"))
+            publishers = publishers.filter(func.lower(Publisher.email).ilike(f"%{info.email.strip().lower()}%"))
         if info.address and info.address.strip():
-            publishers = publishers.filter(func.lower(Publisher.address).like(f"%{info.address.strip().lower()}%"))
+            publishers = publishers.filter(func.lower(Publisher.address).ilike(f"%{info.address.strip().lower()}%"))
         if info.phone_number and info.phone_number.strip():
-            publishers = publishers.filter(Publisher.phone_number.like(f"%{info.phone_number.strip()}%"))
+            publishers = publishers.filter(Publisher.phone_number.ilike(f"%{info.phone_number.strip()}%"))
 
         total_count = publishers.count()
         total_pages = math.ceil(total_count / page_size)
         offset = (page - 1) * page_size
 
-        publishers = db.query(Publisher)\
-            .order_by(Publisher.name)\
+        publishers = publishers.order_by(Publisher.name)\
             .offset(offset).limit(page_size).all()
 
         return PublisherPageableResponse(
