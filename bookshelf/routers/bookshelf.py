@@ -164,7 +164,7 @@ async def search_bookshelf(
     try:
         bookshelfs = db.query(Bookshelf)
         if info.name:
-            bookshelfs = bookshelfs.filter(Bookshelf.name.like(f"%{info.name}%"))
+            bookshelfs = bookshelfs.filter(Bookshelf.name.ilike(f"%{info.name}%"))
         if info.status:
             bookshelfs = bookshelfs.filter(Bookshelf.status == info.status)
 
@@ -172,7 +172,7 @@ async def search_bookshelf(
         total_pages = math.ceil(total_count / page_size)
         offset = (page - 1) * page_size
 
-        bookshelfs = bookshelfs.offset(offset).limit(page_size).all()
+        bookshelfs = bookshelfs.order_by(Bookshelf.name).offset(offset).limit(page_size).all()
         
         return BookshelfPageableResponse(
             total_data=total_count,
@@ -299,20 +299,6 @@ async def import_bookshelfs(
         return JSONResponse(
             content={"message": "Import dữ liệu thành công"},
             status_code=201
-        )
-    
-    except IntegrityError:
-        db.rollback()
-        raise HTTPException(
-            status_code=409, 
-            detail="Lỗi khi lưu dữ liệu vào database."
-        )
-
-    except IntegrityError:
-        db.rollback()
-        raise HTTPException(
-            status_code=400,
-            detail="Dữ liệu không hợp lệ hoặc vi phạm ràng buộc cơ sở dữ liệu"
         )
     
     except SQLAlchemyError as e:
