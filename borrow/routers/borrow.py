@@ -416,7 +416,8 @@ async def create_borrow(
         db.add(borrow)
         db.flush()
 
-        book_copy.update({"status": "Đã mượn"})
+        book_copy_to_update = db.query(BookCopy).filter(BookCopy.id == book_copy.first().id)
+        book_copy_to_update.update({"status": "Đã mượn"})
         db.commit()
 
         return JSONResponse(
