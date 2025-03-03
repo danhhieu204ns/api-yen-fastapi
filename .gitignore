@@ -1,6 +1,6 @@
 .venv
 .env
-a.env
+alembic
 
 __pycache__
 */__pycache__
