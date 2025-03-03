@@ -16,6 +16,7 @@ from book.routers import book
 from book_copy.routers import book_copy
 from bookshelf.routers import bookshelf
 from borrow.routers import borrow
+from stats.routers import stats
 import uvicorn
 
 
@@ -55,6 +56,7 @@ app.router.include_router(book.router)
 app.router.include_router(bookshelf.router)
 app.router.include_router(book_copy.router)
 app.router.include_router(borrow.router)
+app.router.include_router(stats.router)
 
 
 # if __name__ == "__main__":
