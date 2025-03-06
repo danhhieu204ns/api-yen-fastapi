@@ -16,10 +16,12 @@ class UserResponse(BaseModel):
 
 
 class BorrowBase(BaseModel):
-    user_id: int
+    user_id: Optional[int] = None
     book_id: int
     staff_id: Optional[int] = None
+    borrow_date: Optional[date] = None
     duration: Optional[int] = None
+    status: Optional[str] = None
 
     class Config:
         from_attributes = True
@@ -39,6 +41,7 @@ class BorrowResponse(BaseModel):
     user: UserResponse
     book_copy: BookCopyResponse
     staff: Optional[UserResponse] = None
+    borrow_date: Optional[date] = None
     duration: Optional[int] = None
     status: Optional[str] = None
     created_at: datetime

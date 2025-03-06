@@ -53,6 +53,7 @@ async def get_borrows(
         for borrow, book_copy, book, user, staff in borrows_data:
             borrow_response = {
                 "id": borrow.id,
+                "borrow_date": borrow.borrow_date,
                 "duration": borrow.duration,
                 "created_at": borrow.created_at,
                 "status": borrow.status,
@@ -130,6 +131,7 @@ async def get_borrows_pageable(
         for borrow, book_copy, book, user, staff in borrows_data:
             borrow_response = {
                 "id": borrow.id,
+                "borrow_date": borrow.borrow_date,
                 "duration": borrow.duration,
                 "created_at": borrow.created_at,
                 "status": borrow.status,
@@ -208,6 +210,7 @@ async def get_borrow_by_id(
         
         borrow_response = {
             "id": borrow.id,
+            "borrow_date": borrow.borrow_date,
             "duration": borrow.duration,
             "created_at": borrow.created_at,
             "status": borrow.status,
@@ -293,6 +296,7 @@ async def search_borrows(
         for borrow, book_copy, book, user, staff in borrows_data:
             borrow_response = {
                 "id": borrow.id,
+                "borrow_date": borrow.borrow_date,
                 "duration": borrow.duration,
                 "created_at": borrow.created_at,
                 "status": borrow.status,
@@ -361,7 +365,7 @@ async def create_borrow(
                 detail="Hiện không còn bản sao của sách này"
             )
         
-        if not db.query(User).filter(User.id == new_borrow.user_id).first():
+        if new_borrow.user_id and not db.query(User).filter(User.id == new_borrow.user_id).first():
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="Người mượn không tồn tại"
@@ -388,7 +392,7 @@ async def create_borrow(
             duration=new_borrow.duration,
             status="Đang mượn" if is_admin else "Đang chờ",
             book_copy_id=book_copy.first().id,
-            user_id=new_borrow.user_id,
+            user_id=new_borrow.user_id if new_borrow.user_id else current_user.id,
             staff_id=new_borrow.staff_id
         )
         db.add(borrow)
