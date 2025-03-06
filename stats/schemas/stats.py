@@ -35,3 +35,25 @@ class BookStatusItem(BaseModel):
 
 class BookStatusResponse(BaseModel):
     statuses: list[BookStatusItem]
+
+class MonthlyTrendItem(BaseModel):
+    month: str
+    borrowed: int
+    returned: int
+
+class MonthlyTrendsResponse(BaseModel):
+    data: List[MonthlyTrendItem]
+
+class BorrowingByDayItem(BaseModel):
+    day: str
+    count: int
+
+class BorrowingByDayResponse(BaseModel):
+    data: List[BorrowingByDayItem]
+
+class ReturnStatusItem(BaseModel):
+    status: str
+    value: int
+
+class ReturnStatusResponse(BaseModel):
+    data: List[ReturnStatusItem]
