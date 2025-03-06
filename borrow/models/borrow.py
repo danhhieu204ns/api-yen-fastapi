@@ -1,4 +1,4 @@
-from sqlalchemy import Column, String, Integer, text, ForeignKey
+from sqlalchemy import Column, String, Integer, text, ForeignKey, DateTime
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql.sqltypes import TIMESTAMP
 from configs.database import Base
@@ -10,6 +10,7 @@ class Borrow(Base):
     id = Column(Integer, primary_key=True, nullable=False)
     duration = Column(Integer, nullable=True)
     status = Column(String, nullable=True)
+    borrow_date = Column(DateTime, nullable=True)
     created_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=text('now()'))
 
     book_copy_id = Column(Integer, ForeignKey("book_copies.id", ondelete="CASCADE"), nullable=False)

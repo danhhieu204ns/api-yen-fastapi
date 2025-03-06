@@ -1,7 +1,7 @@
 from datetime import datetime, timedelta
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.responses import JSONResponse
-from sqlalchemy import func
+from sqlalchemy import func, extract
 from sqlalchemy.orm import Session
 from book_copy.models.book_copy import BookCopy
 from configs.authentication import get_current_user
@@ -223,5 +223,207 @@ def get_books_by_status(
             status_code=409, 
             detail=str(e)
         )
+
+@router.get("/borrowing/monthly", response_model=MonthlyTrendsResponse)
+def get_monthly_borrowing_trends(
+        db: Session = Depends(get_db), 
+        current_user: User = Depends(get_current_user)
+    ):
+    try:
+        is_admin = db.query(User)\
+            .join(UserRole)\
+            .join(Role)\
+            .filter(User.id == current_user.id, 
+                    Role.name == "admin").first()
+        
+        if not is_admin:
+            return JSONResponse(
+                content={"error": "You are not authorized to access this resource."},
+                status_code=status.HTTP_403_FORBIDDEN
+            )
+        
+        # Get last 5 months
+        today = datetime.today()
+        last_5_months = today - timedelta(days=150)
+        
+        # Query for borrowed books by month
+        borrowed_by_month = (
+            db.query(
+                func.to_char(Borrow.created_at, 'MM/YYYY').label('month'),
+                func.count().label('count')
+            )
+            .filter(Borrow.created_at >= last_5_months)
+            .group_by(func.to_char(Borrow.created_at, 'MM/YYYY'))
+            .all()
+        )
+        
+        # Query for returned books by month
+        returned_by_month = (
+            db.query(
+                func.to_char(Borrow.return_date, 'MM/YYYY').label('month'),
+                func.count().label('count')
+            )
+            .filter(
+                Borrow.return_date.isnot(None),
+                Borrow.return_date >= last_5_months
+            )
+            .group_by(func.to_char(Borrow.return_date, 'MM/YYYY'))
+            .all()
+        )
+        
+        # Create month-based dictionary for easier data manipulation
+        borrowed_dict = {month: count for month, count in borrowed_by_month}
+        returned_dict = {month: count for month, count in returned_by_month}
+        
+        # Get all months in the period
+        all_months = set(borrowed_dict.keys()) | set(returned_dict.keys())
+        
+        # Create final result
+        result = [
+            {
+                "month": month,
+                "borrowed": borrowed_dict.get(month, 0),
+                "returned": returned_dict.get(month, 0)
+            }
+            for month in sorted(all_months)
+        ]
+        
+        return JSONResponse(
+            content={"data": result},
+            status_code=status.HTTP_200_OK
+        )
+    
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT, 
+            detail=str(e)
+        )
+
+@router.get("/borrowing/by-day", response_model=BorrowingByDayResponse)
+def get_borrowing_by_day(
+        db: Session = Depends(get_db), 
+        current_user: User = Depends(get_current_user)
+    ):
+    try:
+        is_admin = db.query(User)\
+            .join(UserRole)\
+            .join(Role)\
+            .filter(User.id == current_user.id, 
+                    Role.name == "admin").first()
+        
+        if not is_admin:
+            return JSONResponse(
+                content={"error": "You are not authorized to access this resource."},
+                status_code=status.HTTP_403_FORBIDDEN
+            )
+        
+        # Query borrowings grouped by day of week (1-7, where 1 is Monday)
+        results = (
+            db.query(
+                extract('dow', Borrow.created_at).label('dow'),
+                func.count().label('count')
+            )
+            .group_by('dow')
+            .order_by('dow')
+            .all()
+        )
+        
+        # Map day of week number to Vietnamese day names
+        day_names = {
+            1: "Thứ 2", 
+            2: "Thứ 3", 
+            3: "Thứ 4", 
+            4: "Thứ 5", 
+            5: "Thứ 6", 
+            6: "Thứ 7", 
+            0: "Chủ nhật"  # Sunday is 0 in PostgreSQL's extract(dow)
+        }
+        
+        # Create final result including all days
+        day_counts = {day_name: 0 for day_name in day_names.values()}
+        for dow, count in results:
+            day_name = day_names.get(dow, f"Day {dow}")
+            day_counts[day_name] = count
+        
+        result = [{"day": day, "count": count} for day, count in day_counts.items()]
+        # Sort in the correct order of days
+        correct_order = ["Thứ 2", "Thứ 3", "Thứ 4", "Thứ 5", "Thứ 6", "Thứ 7", "Chủ nhật"]
+        result.sort(key=lambda x: correct_order.index(x["day"]))
+        
+        return JSONResponse(
+            content={"data": result},
+            status_code=status.HTTP_200_OK
+        )
+    
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT, 
+            detail=str(e)
+        )
+
+@router.get("/borrowing/status", response_model=ReturnStatusResponse)
+def get_return_status(
+        db: Session = Depends(get_db), 
+        current_user: User = Depends(get_current_user)
+    ):
+    try:
+        is_admin = db.query(User)\
+            .join(UserRole)\
+            .join(Role)\
+            .filter(User.id == current_user.id, 
+                    Role.name == "admin").first()
+        
+        if not is_admin:
+            return JSONResponse(
+                content={"error": "You are not authorized to access this resource."},
+                status_code=status.HTTP_403_FORBIDDEN
+            )
+        
+        # Count on-time returns
+        on_time_returns = (
+            db.query(func.count())
+            .filter(
+                Borrow.return_date <= Borrow.due_date,
+                Borrow.return_date.isnot(None)
+            )
+            .scalar() or 0
+        )
+        
+        # Count late returns
+        late_returns = (
+            db.query(func.count())
+            .filter(
+                Borrow.return_date > Borrow.due_date
+            )
+            .scalar() or 0
+        )
+        
+        # Count not returned yet
+        not_returned = (
+            db.query(func.count())
+            .filter(
+                Borrow.return_date.is_(None),
+                Borrow.status.in_(["Đang mượn", "Quá hạn"])
+            )
+            .scalar() or 0
+        )
+        
+        result = [
+            {"status": "Đúng hạn", "value": on_time_returns},
+            {"status": "Trễ hạn", "value": late_returns},
+            {"status": "Chưa trả", "value": not_returned}
+        ]
+        
+        return JSONResponse(
+            content={"data": result},
+            status_code=status.HTTP_200_OK
+        )
+    
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT, 
+            detail=str(e)
+        )
+
 
 
