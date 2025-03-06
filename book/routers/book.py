@@ -230,12 +230,33 @@ async def search_books(
         books = db.query(Book)
         if info.name:
             books = books.filter(Book.name.ilike(f"%{info.name.strip()}%"))
+        if info.author_id:
+            books = books.filter(Book.author_id == info.author_id)
+        if info.category_id:
+            books = books.filter(Book.category_id == info.category_id)
 
         total_data = books.count()
         total_pages = math.ceil(total_data / page_size)
         offset = (page - 1) * page_size
 
-        books = books.order_by(Book.name).offset(offset).limit(page_size).all()    
+        books = books.order_by(Book.name).offset(offset).limit(page_size).all()  
+
+        books = [BookResponse(
+            id=b.id,
+            name=b.name,
+            status=b.status,
+            summary=b.summary,
+            pages=b.pages,
+            language=b.language,
+            author=AuthorBase(id=b.author.id, name=b.author.name) if b.author else None,
+            publisher=PublisherBase(id=b.publisher.id, name=b.publisher.name) if b.publisher else None,
+            category=CategoryBase(id=b.category.id, name=b.category.name) if b.category else None,
+            created_at=b.created_at,
+            available_copies=db.query(BookCopy)\
+                .filter(BookCopy.book_id == b.id, BookCopy.status == "Có sẵn").count(),
+            total_copies=db.query(BookCopy)\
+                .filter(BookCopy.book_id == b.id).count()
+        ) for b in books]
         
         return BookPageableResponse(
             books=books, 

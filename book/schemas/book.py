@@ -82,6 +82,8 @@ class BookPageableResponse(BaseModel):
 
 class BookSearch(BookBase):
     name: Optional[str] = None
+    author_id: Optional[int] = None
+    category_id: Optional[int] = None
 
 
 class DeleteMany(BaseModel):
